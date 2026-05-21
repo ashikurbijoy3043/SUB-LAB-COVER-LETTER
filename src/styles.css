@@ -565,6 +565,69 @@ textarea { resize: vertical; min-height: 76px; line-height: 1.55; }
   border-left: 2px solid rgba(59,130,246,0.3);
 }
 
+/* ─── Export Formats ─── */
+.export-stage {
+  left: -100000px;
+  pointer-events: none;
+  position: fixed;
+  top: 0;
+  width: max-content;
+  z-index: -1;
+}
+
+.export-panel {
+  gap: 14px;
+}
+
+.export-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.export-card {
+  align-items: flex-start;
+  background:
+    linear-gradient(135deg, rgba(59,130,246,0.12), rgba(34,197,94,0.06)),
+    rgba(255,255,255,0.025);
+  border: 1px solid rgba(59,130,246,0.18);
+  border-radius: var(--r-md);
+  box-shadow: none;
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  justify-content: flex-start;
+  min-height: 84px;
+  padding: 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.export-card::before {
+  display: none;
+}
+
+.export-card:hover {
+  background:
+    linear-gradient(135deg, rgba(59,130,246,0.18), rgba(34,197,94,0.1)),
+    rgba(255,255,255,0.045);
+  border-color: rgba(96,165,250,0.34);
+  box-shadow: 0 12px 30px rgba(15,23,42,0.24);
+}
+
+.export-card strong {
+  color: #e8f0ff;
+  font-size: 0.86rem;
+}
+
+.export-card span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 /* ─── Overleaf Builder ─── */
 .overleaf-panel {
   gap: 14px;
@@ -742,7 +805,8 @@ textarea { resize: vertical; min-height: 76px; line-height: 1.55; }
 
 @media (max-width: 480px) {
   .latex-actions,
-  .command-finder {
+  .command-finder,
+  .export-grid {
     grid-template-columns: 1fr;
   }
 

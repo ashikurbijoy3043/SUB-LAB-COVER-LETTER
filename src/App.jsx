@@ -37,6 +37,15 @@ const defaultData = {
 
 const optionalFields = new Set(["group", "session", "registration", "departmentLogoUrl"]);
 
+const exportFormats = [
+  { id: "pdf", label: "PDF", hint: "Best for direct submission" },
+  { id: "png", label: "PNG image", hint: "Sharp image for sharing" },
+  { id: "jpg", label: "JPG image", hint: "Small image file" },
+  { id: "svg", label: "SVG vector", hint: "Editable vector preview" },
+  { id: "docx", label: "Word DOCX", hint: "Editable Word cover" },
+  { id: "pptx", label: "PowerPoint PPTX", hint: "Slide-ready cover" }
+];
+
 const pageSizes = [
   { id: "a4",     label: "A4",     widthMm: 210, heightMm: 297 },
   { id: "letter", label: "Letter", widthMm: 216, heightMm: 279 },
@@ -325,6 +334,149 @@ function showAppToast(title, icon = "success") {
     customClass: {
       popup: "app-swal-toast"
     }
+  });
+}
+
+function slugifyFilePart(value = "cover-page") {
+  const slug = String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return slug || "cover-page";
+}
+
+function getExportBaseName(formData) {
+  return `sub-lab-cover-${slugifyFilePart(formData.courseCode || formData.reportTitle)}`;
+}
+
+function downloadDataUrl(filename, dataUrl) {
+  const link = document.createElement("a");
+  link.href = dataUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function downloadBlob(filename, blob) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function makeDocxParagraph(docx, text, options = {}) {
+  const { Paragraph, TextRun } = docx;
+  return new Paragraph({
+    alignment: options.alignment,
+    heading: options.heading,
+    spacing: options.spacing ?? { after: 180 },
+    children: [
+      new TextRun({
+        text: String(text ?? ""),
+        bold: options.bold,
+        italics: options.italics,
+        size: options.size
+      })
+    ]
+  });
+}
+
+async function buildDocxCover(formData, studentRows, selectedPage) {
+  const docx = await import("docx");
+  const { AlignmentType, BorderStyle, Document, HeadingLevel, Table, TableCell, TableRow, WidthType } = docx;
+  const infoRows = [
+    ["Course Code", formData.courseCode],
+    ["Course Title", formData.courseTitle],
+    ["Experiment No.", formData.experimentNo],
+    ["Experiment Date", formData.experimentDate]
+  ];
+
+  const makeKeyValueRows = (rows) => rows.map(([label, value]) => new TableRow({
+    children: [
+      new TableCell({ children: [makeDocxParagraph(docx, `${label}:`, { bold: true })], width: { size: 36, type: WidthType.PERCENTAGE } }),
+      new TableCell({ children: [makeDocxParagraph(docx, value || "-")], width: { size: 64, type: WidthType.PERCENTAGE } })
+    ]
+  }));
+
+  const submittedTo = [
+    formData.teacherName,
+    formData.teacherTitle,
+    formData.teacherDepartment,
+    formData.university
+  ].filter(Boolean).join("\n");
+
+  const blankBorders = {
+    top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+    bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+    left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+    right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }
+  };
+
+  return new Document({
+    creator: "JOY",
+    lastModifiedBy: "JOY",
+    title: formData.reportTitle,
+    description: "SUB lab report cover page",
+    sections: [{
+      properties: {
+        page: {
+          size: {
+            width: Math.round(selectedPage.widthMm * 56.6929),
+            height: Math.round(selectedPage.heightMm * 56.6929)
+          },
+          margin: { top: 720, right: 720, bottom: 720, left: 720 }
+        }
+      },
+      children: [
+        makeDocxParagraph(docx, formData.reportPrefix, { alignment: AlignmentType.CENTER, bold: true, size: 26 }),
+        makeDocxParagraph(docx, formData.reportTitle, { alignment: AlignmentType.CENTER, bold: true, italics: true, size: 34, heading: HeadingLevel.TITLE }),
+        makeDocxParagraph(docx, formData.university, { alignment: AlignmentType.CENTER, bold: true, size: 28 }),
+        makeDocxParagraph(docx, formData.department, { alignment: AlignmentType.CENTER, size: 24 }),
+        new Table({
+          width: { size: 82, type: WidthType.PERCENTAGE },
+          alignment: AlignmentType.CENTER,
+          rows: makeKeyValueRows(infoRows)
+        }),
+        makeDocxParagraph(docx, "Academic Submission", { alignment: AlignmentType.CENTER, bold: true, size: 20, spacing: { before: 420, after: 180 } }),
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [
+            new TableRow({
+              children: [
+                new TableCell({
+                  borders: blankBorders,
+                  width: { size: 50, type: WidthType.PERCENTAGE },
+                  children: [
+                    makeDocxParagraph(docx, "Submitted To:", { bold: true }),
+                    ...submittedTo.split("\n").map((line) => makeDocxParagraph(docx, line))
+                  ]
+                }),
+                new TableCell({
+                  borders: blankBorders,
+                  width: { size: 50, type: WidthType.PERCENTAGE },
+                  children: [
+                    makeDocxParagraph(docx, "Submitted By:", { bold: true }),
+                    new Table({
+                      width: { size: 100, type: WidthType.PERCENTAGE },
+                      rows: makeKeyValueRows(studentRows)
+                    })
+                  ]
+                })
+              ]
+            })
+          ]
+        }),
+        makeDocxParagraph(docx, `Date of Submission: ${formData.submissionDate}`, { alignment: AlignmentType.CENTER, bold: true, spacing: { before: 420, after: 420 } }),
+        makeDocxParagraph(docx, formData.department, { alignment: AlignmentType.CENTER, bold: true, size: 20 }),
+        makeDocxParagraph(docx, formData.university, { alignment: AlignmentType.CENTER, bold: true, size: 20 })
+      ]
+    }]
   });
 }
 
@@ -631,7 +783,8 @@ function EditorForm({
   studentRows,
   overleafCode,
   copyText,
-  downloadText
+  downloadText,
+  exportCover
 }) {
   const [commandQuery, setCommandQuery] = useState("");
   const [commandCategory, setCommandCategory] = useState("all");
@@ -712,6 +865,47 @@ function EditorForm({
               </label>
             )}
             <p className="form-hint">Preview updates live. Page: <strong>{selectedPage.label} ({selectedPage.widthMm}×{selectedPage.heightMm}mm)</strong></p>
+          </div>
+        )}
+      </div>
+
+      {/* Download Formats */}
+      <div className={`accordion-item ${activeSection === "exports" ? "active" : ""}`}>
+        <button type="button" className="accordion-header" onClick={() => toggleSection("exports")}>
+          <span className="accordion-title-wrapper">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Download Formats</span>
+          </span>
+          <svg className="accordion-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+        </button>
+        {activeSection === "exports" && (
+          <div className="accordion-content export-panel">
+            <div className="template-summary">
+              <strong>Export this cover page</strong>
+              <span>Download the same cover as document, image, PDF, or slide format.</span>
+            </div>
+
+            <div className="export-grid">
+              {exportFormats.map((format) => (
+                <button
+                  type="button"
+                  className="export-card"
+                  key={format.id}
+                  onClick={() => exportCover(format.id)}
+                >
+                  <strong>{format.label}</strong>
+                  <span>{format.hint}</span>
+                </button>
+              ))}
+            </div>
+
+            <p className="form-hint">
+              For official submission, PDF is best. PNG/JPG/SVG are useful for sharing, while DOCX and PPTX are editable.
+            </p>
           </div>
         )}
       </div>
@@ -885,6 +1079,7 @@ function EditorForm({
 function App() {
   const [formData, setFormData] = useState(defaultData);
   const cardRef = useRef(null);
+  const exportCardRef = useRef(null);
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
   const [is3D, setIs3D] = useState(false);
@@ -1023,15 +1218,100 @@ function App() {
   }
   function downloadText(filename, text) {
     const blob = new Blob([text], { type: "text/x-tex;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    downloadBlob(filename, blob);
     showAppToast(`${filename} downloaded`);
+  }
+
+  async function getCoverImageDataUrl(format = "png", pixelRatio = 2) {
+    const node = exportCardRef.current;
+    if (!node) throw new Error("Cover preview is not ready yet.");
+    await document.fonts?.ready;
+    const { toJpeg, toPng, toSvg } = await import("html-to-image");
+
+    const options = {
+      backgroundColor: "#ffffff",
+      cacheBust: true,
+      pixelRatio,
+      filter: (domNode) => !domNode.classList?.contains("paper-glare")
+    };
+
+    if (format === "jpg") {
+      return toJpeg(node, { ...options, quality: 0.96 });
+    }
+
+    if (format === "svg") {
+      return toSvg(node, options);
+    }
+
+    return toPng(node, options);
+  }
+
+  async function exportCover(format) {
+    const baseName = getExportBaseName(formData);
+    const label = exportFormats.find((item) => item.id === format)?.label ?? format.toUpperCase();
+
+    Swal.fire({
+      title: `Preparing ${label}`,
+      text: "Please wait a moment...",
+      allowOutsideClick: false,
+      showConfirmButton: false,
+      background: "#0f172a",
+      color: "#e8f0ff",
+      didOpen: () => Swal.showLoading()
+    });
+
+    try {
+      if (format === "pdf") {
+        const { jsPDF } = await import("jspdf");
+        const image = await getCoverImageDataUrl("png", 2.4);
+        const pdf = new jsPDF({
+          orientation: selectedPage.widthMm > selectedPage.heightMm ? "landscape" : "portrait",
+          unit: "mm",
+          format: [selectedPage.widthMm, selectedPage.heightMm]
+        });
+        pdf.addImage(image, "PNG", 0, 0, selectedPage.widthMm, selectedPage.heightMm);
+        pdf.save(`${baseName}.pdf`);
+      } else if (format === "png") {
+        downloadDataUrl(`${baseName}.png`, await getCoverImageDataUrl("png", 2.6));
+      } else if (format === "jpg") {
+        downloadDataUrl(`${baseName}.jpg`, await getCoverImageDataUrl("jpg", 2.4));
+      } else if (format === "svg") {
+        downloadDataUrl(`${baseName}.svg`, await getCoverImageDataUrl("svg", 1));
+      } else if (format === "docx") {
+        const { Packer } = await import("docx");
+        const blob = await Packer.toBlob(await buildDocxCover(formData, studentRows, selectedPage));
+        downloadBlob(`${baseName}.docx`, blob);
+      } else if (format === "pptx") {
+        const { default: PptxGenJS } = await import("pptxgenjs");
+        const image = await getCoverImageDataUrl("png", 2.2);
+        const pptx = new PptxGenJS();
+        const widthIn = selectedPage.widthMm / 25.4;
+        const heightIn = selectedPage.heightMm / 25.4;
+        pptx.author = "JOY";
+        pptx.company = "State University of Bangladesh";
+        pptx.subject = formData.reportTitle;
+        pptx.title = formData.reportTitle;
+        pptx.defineLayout({ name: "COVER_PAGE", width: widthIn, height: heightIn });
+        pptx.layout = "COVER_PAGE";
+        const slide = pptx.addSlide();
+        slide.background = { color: "FFFFFF" };
+        slide.addImage({ data: image, x: 0, y: 0, w: widthIn, h: heightIn });
+        await pptx.writeFile({ fileName: `${baseName}.pptx` });
+      }
+
+      Swal.close();
+      showAppToast(`${label} downloaded`);
+    } catch (error) {
+      Swal.fire({
+        title: "Export failed",
+        text: error?.message || "Please try again, or use Print / Save PDF.",
+        icon: "error",
+        confirmButtonText: "OK",
+        background: "#0f172a",
+        color: "#e8f0ff",
+        confirmButtonColor: "#2563eb"
+      });
+    }
   }
 
   return (
@@ -1103,6 +1383,7 @@ function App() {
             overleafCode={overleafCode}
             copyText={copyText}
             downloadText={downloadText}
+            exportCover={exportCover}
           />
         </div>
       </section>
@@ -1180,6 +1461,16 @@ function App() {
           Live Preview · {selectedPage.label} · {selectedPage.widthMm}×{selectedPage.heightMm}mm
         </div>
       </section>
+
+      <div className="export-stage" aria-hidden="true">
+        <CoverPage
+          formData={formData}
+          paperStyle={paperStyle}
+          studentRows={studentRows}
+          is3D={false}
+          cardRef={exportCardRef}
+        />
+      </div>
 
       {/* ════ LIGHTBOX (double-click zoom) ════ */}
       {lightboxOpen && (
