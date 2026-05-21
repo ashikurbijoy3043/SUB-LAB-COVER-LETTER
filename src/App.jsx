@@ -82,7 +82,7 @@ const fieldGroups = [
         <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5" />
       </svg>
     ),
-    fields: [["university","University name"],["department","Department name"]]
+    fields: [["university","University name"]]
   },
   {
     id: "teacher", title: "Submitted To",
@@ -292,6 +292,17 @@ function EditorForm({ formData, activeSection, toggleSection, updateField, updat
                 {departments.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
               </select>
             </label>
+
+            {formData.departmentPreset === "custom" && (
+              <label>
+                <span>Custom department name</span>
+                <input
+                  value={formData.department}
+                  onChange={(e) => updateField("department", e.target.value)}
+                  placeholder="Department of ..."
+                />
+              </label>
+            )}
             {formData.pageSize === "custom" && (
               <div className="custom-size-grid">
                 <label><span>Width (mm)</span><input type="number" min="100" max="500" value={formData.customWidthMm} onChange={(e) => updateField("customWidthMm", e.target.value)} /></label>
@@ -462,11 +473,28 @@ function App() {
     ["Reg. No.", formData.registration]
   ].filter(([,v]) => v.trim()), [formData]);
 
-  function updateField(k, v) { setFormData((c) => ({ ...c, [k]: v })); }
+  function updateField(k, v) {
+    setFormData((c) => {
+      const next = { ...c, [k]: v };
+      if (k === "department" && c.departmentPreset === "custom") {
+        next.teacherDepartment = v;
+      }
+      return next;
+    });
+  }
   function updateDepartmentPreset(v) {
     const d = departments.find((x) => x.id === v);
     setFormData((c) => {
-      if (!d || d.id === "custom") return { ...c, departmentPreset: "custom" };
+      if (!d || d.id === "custom") {
+        return {
+          ...c,
+          departmentPreset: "custom",
+          department: "",
+          teacherDepartment: "",
+          departmentLogoUrl: "",
+          showDepartmentLogo: false
+        };
+      }
       const dn = `Department of ${d.label}`;
       return { ...c, departmentPreset: v, department: dn, teacherDepartment: dn, departmentLogoUrl: d.logoUrl };
     });
