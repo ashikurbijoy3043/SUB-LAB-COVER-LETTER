@@ -2,8 +2,20 @@ import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
-const SUB_LOGO_URL = "https://www.sub.ac.bd/uploads/logo/cdcbff91d69b664eef72.jpg";
-const CSE_IMAGE_URL = "https://www.sub.ac.bd/uploads/department/a2149fac87112b19d2ad.jpg";
+const ASSET_BASE_URL = import.meta.env.BASE_URL ?? "/";
+const SUB_LOGO_URL = `${ASSET_BASE_URL}sub-logo.jpg`;
+const CSE_IMAGE_URL = `${ASSET_BASE_URL}cse-logo.jpg`;
+const DEPARTMENT_LOGOS = {
+  architecture: `${ASSET_BASE_URL}department-architecture.jpg`,
+  "business-studies": `${ASSET_BASE_URL}department-business-studies.jpg`,
+  "english-studies": `${ASSET_BASE_URL}department-english-studies.jpg`,
+  "environmental-science": `${ASSET_BASE_URL}department-environmental-science.jpg`,
+  "food-engineering": `${ASSET_BASE_URL}department-food-engineering.jpg`,
+  journalism: `${ASSET_BASE_URL}department-journalism.jpg`,
+  law: `${ASSET_BASE_URL}department-law.jpg`,
+  pharmacy: `${ASSET_BASE_URL}department-pharmacy.jpg`,
+  "public-health": `${ASSET_BASE_URL}department-public-health.jpg`
+};
 
 const defaultData = {
   pageSize: "a4",
@@ -55,16 +67,16 @@ const pageSizes = [
 ];
 
 const departments = [
-  { id: "architecture",        label: "Architecture",                          logoUrl: "https://www.sub.ac.bd/uploads/department/e435a8d703c649c9bc41.jpg" },
-  { id: "business-studies",    label: "Business Studies",                      logoUrl: "https://www.sub.ac.bd/uploads/department/cb94f2ee37f713473e6f.jpg" },
+  { id: "architecture",        label: "Architecture",                          logoUrl: DEPARTMENT_LOGOS.architecture },
+  { id: "business-studies",    label: "Business Studies",                      logoUrl: DEPARTMENT_LOGOS["business-studies"] },
   { id: "cse",                 label: "Computer Science and Engineering",       logoUrl: CSE_IMAGE_URL },
-  { id: "english-studies",     label: "English Studies",                        logoUrl: "https://www.sub.ac.bd/uploads/department/e9a37aac8fada78655e3.jpg" },
-  { id: "environmental-science", label: "Environmental Science",               logoUrl: "https://www.sub.ac.bd/uploads/department/5dde26b7fbe3a4786046.jpg" },
-  { id: "food-engineering",    label: "Food Engineering and Nutrition Science", logoUrl: "https://www.sub.ac.bd/uploads/department/0531c77c74134ff49c15.jpg" },
-  { id: "journalism",          label: "Journalism, Communication and Media Studies", logoUrl: "https://www.sub.ac.bd/uploads/department/8785f6f3c0d63dbea3af.jpg" },
-  { id: "law",                 label: "Law",                                   logoUrl: "https://www.sub.ac.bd/uploads/department/45aa41cdbccd45cddb16.jpg" },
-  { id: "pharmacy",            label: "Pharmacy",                              logoUrl: "https://www.sub.ac.bd/uploads/department/a49148f4a236041b563d.JPG" },
-  { id: "public-health",       label: "Public Health",                         logoUrl: "https://www.sub.ac.bd/uploads/department/cdaa54b85e45d0abe356.jpg" },
+  { id: "english-studies",     label: "English Studies",                        logoUrl: DEPARTMENT_LOGOS["english-studies"] },
+  { id: "environmental-science", label: "Environmental Science",               logoUrl: DEPARTMENT_LOGOS["environmental-science"] },
+  { id: "food-engineering",    label: "Food Engineering and Nutrition Science", logoUrl: DEPARTMENT_LOGOS["food-engineering"] },
+  { id: "journalism",          label: "Journalism, Communication and Media Studies", logoUrl: DEPARTMENT_LOGOS.journalism },
+  { id: "law",                 label: "Law",                                   logoUrl: DEPARTMENT_LOGOS.law },
+  { id: "pharmacy",            label: "Pharmacy",                              logoUrl: DEPARTMENT_LOGOS.pharmacy },
+  { id: "public-health",       label: "Public Health",                         logoUrl: DEPARTMENT_LOGOS["public-health"] },
   { id: "custom",              label: "Custom department",                     logoUrl: "" }
 ];
 
@@ -722,9 +734,9 @@ function CoverPage({ formData, paperStyle, studentRows, is3D, cardRef }) {
       </div>
 
       <div className={`logos ${hasDepartmentLogo(formData) ? "" : "logos-single"}`}>
-        <img src={SUB_LOGO_URL} alt="State University of Bangladesh logo" crossOrigin="anonymous" referrerPolicy="no-referrer" />
+        <img src={SUB_LOGO_URL} alt="State University of Bangladesh logo" />
         {hasDepartmentLogo(formData) && (
-          <img className="department-logo" src={formData.departmentLogoUrl} alt={`${formData.department} logo`} crossOrigin="anonymous" referrerPolicy="no-referrer" />
+          <img className="department-logo" src={formData.departmentLogoUrl} alt={`${formData.department} logo`} />
         )}
       </div>
 
