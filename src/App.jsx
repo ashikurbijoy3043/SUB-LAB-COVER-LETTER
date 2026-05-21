@@ -1178,7 +1178,60 @@ function EditorForm({
               </Button>
             </div>
             {profiles.length === 0 ? (
-              <p className="form-hint">No profiles saved yet. Fill the student details below and save them as a profile for easy auto-filling later.</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <p className="form-hint" style={{ margin: 0 }}>No profiles saved yet. Fill the student details below and save them as a profile for easy auto-filling later.</p>
+                <div className="example-profiles-box" style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "10px" }}>
+                  <p className="form-hint" style={{ marginBottom: "8px", fontWeight: "600", color: "var(--text-secondary)" }}>Or quick-fill with these example presets:</p>
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      className="toolbar-btn"
+                      onClick={() => {
+                        loadProfile({
+                          name: "CSE Student Example",
+                          fields: {
+                            submittedByName: "Joy Kumar",
+                            roll: "2026-CSE-045",
+                            registration: "CSE-2026-0987",
+                            session: "2025-26",
+                            year: "3rd",
+                            semester: "1st",
+                            groupName: "Group A",
+                            department: "Department of Computer Science and Engineering",
+                            university: "State University of Bangladesh"
+                          }
+                        });
+                      }}
+                      style={{ fontSize: "0.75rem", padding: "6px 10px", height: "auto" }}
+                    >
+                      💡 CSE Student Example
+                    </button>
+                    <button
+                      type="button"
+                      className="toolbar-btn"
+                      onClick={() => {
+                        loadProfile({
+                          name: "BBA Student Example",
+                          fields: {
+                            submittedByName: "Ashikur Rahman",
+                            roll: "2026-BBA-120",
+                            registration: "BBA-2026-1123",
+                            session: "2025-26",
+                            year: "2nd",
+                            semester: "2nd",
+                            groupName: "Group B",
+                            department: "Department of Business Administration",
+                            university: "State University of Bangladesh"
+                          }
+                        });
+                      }}
+                      style={{ fontSize: "0.75rem", padding: "6px 10px", height: "auto" }}
+                    >
+                      💡 BBA Student Example
+                    </button>
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="profiles-list" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {profiles.map((p) => (
