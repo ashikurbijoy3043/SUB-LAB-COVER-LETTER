@@ -30,6 +30,7 @@ const defaultData = {
   courseCode: "CSE-3107",
   courseTitle: "Software Engineering Lab",
   experimentNo: "01",
+  experimentNoOptional: false,
   experimentDate: "17 May 2026",
   teacherName: "SAKIB AL HASAN",
   teacherTitle: "Associate Professor",
@@ -48,6 +49,31 @@ const defaultData = {
 };
 
 const optionalFields = new Set(["group", "session", "registration", "departmentLogoUrl"]);
+
+function getExperimentNoLabel(formData) {
+  return formData.departmentPreset === "cse" ? "Lab / Program No." : "Experiment No.";
+}
+
+function getFieldLabel(formData, key, fallbackLabel) {
+  return key === "experimentNo" ? getExperimentNoLabel(formData) : fallbackLabel;
+}
+
+function isOptionalField(formData, key) {
+  return optionalFields.has(key) || (key === "experimentNo" && formData.experimentNoOptional);
+}
+
+function isRequiredField(formData, key) {
+  return key === "experimentNo" && !formData.experimentNoOptional;
+}
+
+function getCourseRows(formData) {
+  return [
+    ["Course Code", formData.courseCode, false],
+    ["Course Title", formData.courseTitle, false],
+    [getExperimentNoLabel(formData), formData.experimentNo, formData.experimentNoOptional],
+    ["Experiment Date", formData.experimentDate, false]
+  ].filter(([, value, optional]) => !optional || value.trim());
+}
 
 const exportFormats = [
   { id: "pdf", label: "PDF", hint: "Best for direct submission" },
@@ -402,12 +428,7 @@ function makeDocxParagraph(docx, text, options = {}) {
 async function buildDocxCover(formData, studentRows, selectedPage) {
   const docx = await import("docx");
   const { AlignmentType, BorderStyle, Document, HeadingLevel, Table, TableCell, TableRow, WidthType } = docx;
-  const infoRows = [
-    ["Course Code", formData.courseCode],
-    ["Course Title", formData.courseTitle],
-    ["Experiment No.", formData.experimentNo],
-    ["Experiment Date", formData.experimentDate]
-  ];
+  const infoRows = getCourseRows(formData).map(([label, value]) => [label, value]);
 
   const makeKeyValueRows = (rows) => rows.map(([label, value]) => new TableRow({
     children: [
@@ -514,6 +535,9 @@ function buildLatexCover(formData, studentRows) {
   const rows = studentRows
     .map(([label, value]) => `        \\textbf{${escapeLatex(label)}:} & ${escapeLatex(value)} \\\\`)
     .join("\n");
+  const courseRows = getCourseRows(formData)
+    .map(([label, value]) => `        \\textbf{${escapeLatex(label)}:} & ${escapeLatex(value)} \\\\`)
+    .join("\n");
 
   return `\\begin{titlepage}
     \\centering
@@ -527,10 +551,7 @@ function buildLatexCover(formData, studentRows) {
     \\vspace{0.9cm}
 
     \\begin{tabular}{rl}
-        \\textbf{Course Code:} & ${escapeLatex(formData.courseCode)} \\\\
-        \\textbf{Course Title:} & ${escapeLatex(formData.courseTitle)} \\\\
-        \\textbf{Experiment No.:} & ${escapeLatex(formData.experimentNo)} \\\\
-        \\textbf{Experiment Date:} & ${escapeLatex(formData.experimentDate)} \\\\
+${courseRows}
     \\end{tabular}
 
     \\vfill
@@ -741,10 +762,9 @@ function CoverPage({ formData, paperStyle, studentRows, is3D, cardRef }) {
       </div>
 
       <div className="course-info">
-        <p><strong>Course Code:</strong> {formData.courseCode}</p>
-        <p><strong>Course Title:</strong> {formData.courseTitle}</p>
-        <p><strong>Experiment No.:</strong> {formData.experimentNo}</p>
-        <p><strong>Experiment Date:</strong> {formData.experimentDate}</p>
+        {getCourseRows(formData).map(([label, value]) => (
+          <p key={label}><strong>{label}:</strong> {value}</p>
+        ))}
       </div>
 
       <div className="section-divider"><span>Academic Submission</span></div>
@@ -871,6 +891,10 @@ function EditorForm({
               <input type="checkbox" checked={formData.showDepartmentLogo} onChange={(e) => updateField("showDepartmentLogo", e.target.checked)} />
               <span>Show optional department logo</span>
             </label>
+            <label className="check-row">
+              <input type="checkbox" checked={formData.experimentNoOptional} onChange={(e) => updateField("experimentNoOptional", e.target.checked)} />
+              <span>Make {getExperimentNoLabel(formData).toLowerCase()} optional</span>
+            </label>
             {formData.showDepartmentLogo && (
               <label><span>Department logo URL <small>Optional</small></span>
                 <input value={formData.departmentLogoUrl} onChange={(e) => updateField("departmentLogoUrl", e.target.value)} placeholder="Paste image URL…" />
@@ -933,10 +957,19 @@ function EditorForm({
             <div className="accordion-content">
               {group.fields.map(([key, label]) => (
                 <label key={key}>
-                  <span>{label}{optionalFields.has(key) && <small>Optional</small>}</span>
+                  <span>
+                    {getFieldLabel(formData, key, label)}
+                    {isOptionalField(formData, key) && <small>Optional</small>}
+                    {isRequiredField(formData, key) && <small>Required</small>}
+                  </span>
                   {key === "reportTitle"
                     ? <textarea value={formData[key]} onChange={(e) => updateField(key, e.target.value)} rows="3" />
-                    : <input value={formData[key]} onChange={(e) => updateField(key, e.target.value)} />}
+                    : <input
+                        value={formData[key]}
+                        onChange={(e) => updateField(key, e.target.value)}
+                        required={isRequiredField(formData, key)}
+                        aria-required={isRequiredField(formData, key)}
+                      />}
                 </label>
               ))}
             </div>
