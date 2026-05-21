@@ -722,9 +722,9 @@ function CoverPage({ formData, paperStyle, studentRows, is3D, cardRef }) {
       </div>
 
       <div className={`logos ${hasDepartmentLogo(formData) ? "" : "logos-single"}`}>
-        <img src={SUB_LOGO_URL} alt="State University of Bangladesh logo" />
+        <img src={SUB_LOGO_URL} alt="State University of Bangladesh logo" crossOrigin="anonymous" referrerPolicy="no-referrer" />
         {hasDepartmentLogo(formData) && (
-          <img className="department-logo" src={formData.departmentLogoUrl} alt={`${formData.department} logo`} />
+          <img className="department-logo" src={formData.departmentLogoUrl} alt={`${formData.department} logo`} crossOrigin="anonymous" referrerPolicy="no-referrer" />
         )}
       </div>
 
@@ -1226,24 +1226,40 @@ function App() {
     const node = exportCardRef.current;
     if (!node) throw new Error("Cover preview is not ready yet.");
     await document.fonts?.ready;
-    const { toJpeg, toPng, toSvg } = await import("html-to-image");
-
-    const options = {
-      backgroundColor: "#ffffff",
-      cacheBust: true,
-      pixelRatio,
-      filter: (domNode) => !domNode.classList?.contains("paper-glare")
-    };
-
-    if (format === "jpg") {
-      return toJpeg(node, { ...options, quality: 0.96 });
-    }
 
     if (format === "svg") {
-      return toSvg(node, options);
+      const { toSvg } = await import("html-to-image");
+      return toSvg(node, {
+        backgroundColor: "#ffffff",
+        cacheBust: true,
+        imagePlaceholder: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+        filter: (domNode) => !domNode.classList?.contains("paper-glare")
+      });
     }
 
-    return toPng(node, options);
+    try {
+      const { default: html2canvas } = await import("html2canvas");
+      const canvas = await html2canvas(node, {
+        backgroundColor: "#ffffff",
+        scale: pixelRatio,
+        useCORS: true,
+        allowTaint: false,
+        imageTimeout: 8000,
+        logging: false,
+        ignoreElements: (domNode) => domNode.classList?.contains("paper-glare")
+      });
+      return canvas.toDataURL(format === "jpg" ? "image/jpeg" : "image/png", format === "jpg" ? 0.96 : 1);
+    } catch {
+      const { toJpeg, toPng } = await import("html-to-image");
+      const options = {
+        backgroundColor: "#ffffff",
+        cacheBust: true,
+        pixelRatio,
+        imagePlaceholder: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+        filter: (domNode) => !domNode.classList?.contains("paper-glare")
+      };
+      return format === "jpg" ? toJpeg(node, { ...options, quality: 0.96 }) : toPng(node, options);
+    }
   }
 
   async function exportCover(format) {
