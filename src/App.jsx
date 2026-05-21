@@ -1,6 +1,9 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
+import { Badge } from "./components/ui/badge";
+import { Button } from "./components/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
 
 const ASSET_BASE_URL = import.meta.env.BASE_URL ?? "/";
 const SUB_LOGO_URL = `${ASSET_BASE_URL}sub-logo.jpg`;
@@ -896,7 +899,7 @@ function EditorForm({
               <span>Make {getExperimentNoLabel(formData).toLowerCase()} optional</span>
             </label>
             {formData.showDepartmentLogo && (
-              <label><span>Department logo URL <small>Optional</small></span>
+              <label><span>Department logo URL <Badge>Optional</Badge></span>
                 <input value={formData.departmentLogoUrl} onChange={(e) => updateField("departmentLogoUrl", e.target.value)} placeholder="Paste image URL…" />
               </label>
             )}
@@ -920,22 +923,25 @@ function EditorForm({
         </button>
         {activeSection === "exports" && (
           <div className="accordion-content export-panel">
-            <div className="template-summary">
-              <strong>Export this cover page</strong>
-              <span>Download the same cover as document, image, PDF, or slide format.</span>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Export this cover page</CardTitle>
+                <CardDescription>Download the same cover as document, image, PDF, or slide format.</CardDescription>
+              </CardHeader>
+            </Card>
 
             <div className="export-grid">
               {exportFormats.map((format) => (
-                <button
+                <Button
                   type="button"
-                  className="export-card"
+                  variant="export"
+                  full
                   key={format.id}
                   onClick={() => exportCover(format.id)}
                 >
                   <strong>{format.label}</strong>
                   <span>{format.hint}</span>
-                </button>
+                </Button>
               ))}
             </div>
 
@@ -959,8 +965,8 @@ function EditorForm({
                 <label key={key}>
                   <span>
                     {getFieldLabel(formData, key, label)}
-                    {isOptionalField(formData, key) && <small>Optional</small>}
-                    {isRequiredField(formData, key) && <small>Required</small>}
+                    {isOptionalField(formData, key) && <Badge>Optional</Badge>}
+                    {isRequiredField(formData, key) && <Badge variant="success">Required</Badge>}
                   </span>
                   {key === "reportTitle"
                     ? <textarea value={formData[key]} onChange={(e) => updateField(key, e.target.value)} rows="3" />
@@ -994,10 +1000,12 @@ function EditorForm({
         </button>
         {activeSection === "overleaf" && (
           <div className="accordion-content overleaf-panel">
-            <div className="template-summary">
-              <strong>{selectedTemplate.title}</strong>
-              <span>{selectedTemplate.focus}</span>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>{selectedTemplate.title}</CardTitle>
+                <CardDescription>{selectedTemplate.focus}</CardDescription>
+              </CardHeader>
+            </Card>
 
             <div className="section-pill-grid">
               {selectedTemplate.sections.map((section) => (
@@ -1006,15 +1014,15 @@ function EditorForm({
             </div>
 
             <div className="latex-actions">
-              <button type="button" onClick={() => copyText(overleafCode, "Full Overleaf LaTeX copied")}>
+              <Button type="button" onClick={() => copyText(overleafCode, "Full Overleaf LaTeX copied")}>
                 Copy full LaTeX
-              </button>
-              <button type="button" className="secondary" onClick={() => downloadText("main.tex", overleafCode)}>
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => downloadText("main.tex", overleafCode)}>
                 Download main.tex
-              </button>
-              <button type="button" className="secondary" onClick={() => copyText(buildLatexCover(formData, studentRows), "Cover page LaTeX copied")}>
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => copyText(buildLatexCover(formData, studentRows), "Cover page LaTeX copied")}>
                 Copy cover only
-              </button>
+              </Button>
             </div>
 
             <label>
@@ -1044,9 +1052,9 @@ function EditorForm({
 
             <div className="command-toolbar">
               <span>{filteredCommandCards.length} command{filteredCommandCards.length === 1 ? "" : "s"} ready</span>
-              <button type="button" className="secondary" onClick={() => copyText(allCommandText, "All Overleaf commands copied")}>
+              <Button type="button" variant="secondary" size="sm" onClick={() => copyText(allCommandText, "All Overleaf commands copied")}>
                 Copy all commands
-              </button>
+              </Button>
             </div>
 
             <div className="command-grid">
@@ -1058,9 +1066,9 @@ function EditorForm({
                     <span>{card.hint}</span>
                   </div>
                   <pre>{card.code}</pre>
-                  <button type="button" className="secondary" onClick={() => copyText(card.code, `${card.title} command copied`)}>
+                  <Button type="button" variant="secondary" onClick={() => copyText(card.code, `${card.title} command copied`)}>
                     Copy command
-                  </button>
+                  </Button>
                 </div>
               ))}
               {!filteredCommandCards.length && (
@@ -1418,18 +1426,18 @@ function App() {
           </div>
 
           <div className="actions no-print">
-            <button type="button" id="print-btn" onClick={handlePrint}>
+            <Button type="button" id="print-btn" onClick={handlePrint}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" />
               </svg>
               Print / Save PDF
-            </button>
-            <button type="button" className="secondary" onClick={resetForm}>
+            </Button>
+            <Button type="button" variant="secondary" onClick={resetForm}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-3" />
               </svg>
               Reset
-            </button>
+            </Button>
           </div>
 
           <EditorForm

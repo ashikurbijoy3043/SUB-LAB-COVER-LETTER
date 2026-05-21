@@ -1,0 +1,23 @@
+import { cn } from "../../lib/utils";
+
+function Card({ className, ...props }) {
+  return <div className={cn("ui-card", className)} {...props} />;
+}
+
+function CardHeader({ className, ...props }) {
+  return <div className={cn("ui-card-header", className)} {...props} />;
+}
+
+function CardTitle({ className, ...props }) {
+  return <strong className={cn("ui-card-title", className)} {...props} />;
+}
+
+function CardDescription({ className, ...props }) {
+  return <span className={cn("ui-card-description", className)} {...props} />;
+}
+
+function CardContent({ className, ...props }) {
+  return <div className={cn("ui-card-content", className)} {...props} />;
+}
+
+export { Card, CardContent, CardDescription, CardHeader, CardTitle };
