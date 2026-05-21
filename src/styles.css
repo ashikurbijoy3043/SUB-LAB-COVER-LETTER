@@ -567,11 +567,10 @@ textarea { resize: vertical; min-height: 76px; line-height: 1.55; }
 
 /* ─── Export Formats ─── */
 .export-stage {
-  left: 0;
+  left: -100000px;
   pointer-events: none;
   position: fixed;
   top: 0;
-  transform: translateX(-120vw);
   width: max-content;
   z-index: -1;
 }
