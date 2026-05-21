@@ -359,7 +359,7 @@ const exportFormats = [
   { id: "zip", label: "ZIP bundle", hint: "PDF + DOCX together" }
 ];
 
-const pageRenderOrder = ["cover", "abstract", "acknowledgement", "transmittal", "toc", "labInfo", "references", "appendix", "certificate", "rubric"];
+const pageRenderOrder = ["cover", "acknowledgement", "transmittal", "toc", "abstract", "rubric", "references", "labInfo", "appendix", "certificate"];
 
 const pageSizes = [
   { id: "a4",     label: "A4",     widthMm: 210, heightMm: 297 },
@@ -3541,15 +3541,15 @@ function App() {
     const pagesToRender = [];
 
     if (enabledPages.cover) pagesToRender.push({ name: "Cover", ref: exportCardRef });
-    if (enabledPages.abstract) pagesToRender.push({ name: "Abstract", ref: exportAbstractRef });
     if (enabledPages.acknowledgement) pagesToRender.push({ name: "Acknowledgement", ref: exportAckRef });
     if (enabledPages.transmittal) pagesToRender.push({ name: "Letter of Transmittal", ref: exportTransmittalRef });
     if (enabledPages.toc) pagesToRender.push({ name: "Table of Contents", ref: exportTocRef });
-    if (enabledPages.labInfo) pagesToRender.push({ name: "Lab Information", ref: exportLabInfoRef });
+    if (enabledPages.abstract) pagesToRender.push({ name: "Abstract", ref: exportAbstractRef });
+    if (enabledPages.rubric) pagesToRender.push({ name: "Grading Rubric", ref: exportRubricRef });
     if (enabledPages.references) pagesToRender.push({ name: "References", ref: exportReferencesRef });
+    if (enabledPages.labInfo) pagesToRender.push({ name: "Lab Information", ref: exportLabInfoRef });
     if (enabledPages.appendix) pagesToRender.push({ name: "Appendix", ref: exportAppendixRef });
     if (enabledPages.certificate) pagesToRender.push({ name: "Certificate", ref: exportCertificateRef });
-    if (enabledPages.rubric) pagesToRender.push({ name: "Grading Rubric", ref: exportRubricRef });
 
     const pdf = new jsPDF({
       orientation: selectedPage.widthMm > selectedPage.heightMm ? "landscape" : "portrait",
