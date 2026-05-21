@@ -24,7 +24,7 @@
   /* Text */
   --text-primary:     #f0f6ff;
   --text-secondary:   #94a3b8;
-  --text-muted:       #4b6280;
+  --text-muted:       #8aa0bc;
   --text-accent:      #60a5fa;
 
   /* Borders */
@@ -81,7 +81,7 @@
   --bg-input:         rgba(255, 255, 255, 0.95);
   --text-primary:     #0f172a;
   --text-secondary:   #475569;
-  --text-muted:       #94a3b8;
+  --text-muted:       #64748b;
   --text-accent:      #2563eb;
   --border-subtle:    rgba(15, 23, 42, 0.08);
   --border-dim:       rgba(15, 23, 42, 0.12);
@@ -327,6 +327,14 @@ h1 {
   background-clip: text;
 }
 
+:root.light-theme h1 {
+  color: var(--text-primary);
+  background: linear-gradient(135deg, #0f172a 15%, #2563eb 60%, #4f46e5 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .hero-subtitle {
   color: var(--text-secondary);
   line-height: 1.6;
@@ -362,6 +370,10 @@ h1 {
 .brand-note strong, .brand-note span { display: block; }
 .brand-note strong { color: #e8f0ff; font-weight: 700; font-size: 0.88rem; margin-bottom: 2px; }
 .brand-note span  { color: var(--text-muted); font-size: 0.78rem; line-height: 1.4; }
+
+:root.light-theme .brand-note strong {
+  color: var(--text-primary);
+}
 
 /* ─── Action Buttons ─── */
 .actions {
@@ -521,6 +533,10 @@ button.secondary:hover {
   font-size: 0.92rem;
 }
 
+:root.light-theme .ui-card-title {
+  color: var(--text-primary);
+}
+
 .ui-card-description {
   color: var(--text-secondary);
   display: block;
@@ -550,6 +566,12 @@ button.secondary:hover {
   background: rgba(34,197,94,0.12);
   border: 1px solid rgba(34,197,94,0.22);
   color: #86efac;
+}
+
+:root.light-theme .ui-badge-success {
+  background: rgba(22,163,74,0.12);
+  border-color: rgba(22,163,74,0.24);
+  color: #15803d;
 }
 
 .ui-badge-muted {
@@ -644,6 +666,29 @@ button.secondary:hover {
   color: var(--text-accent);
 }
 
+:root.light-theme .accordion-item {
+  background: rgba(255,255,255,0.78);
+  border-color: rgba(15,23,42,0.10);
+}
+
+:root.light-theme .accordion-item:hover {
+  background: #fff;
+  border-color: rgba(37,99,235,0.20);
+  box-shadow: 0 8px 22px rgba(15,23,42,0.07);
+}
+
+:root.light-theme .accordion-item.active {
+  background: #fff;
+  border-color: rgba(37,99,235,0.32);
+  box-shadow:
+    0 0 0 1px rgba(37,99,235,0.08),
+    0 12px 28px rgba(15,23,42,0.08);
+}
+
+:root.light-theme .accordion-item.active .accordion-header {
+  border-bottom: 1px solid rgba(15,23,42,0.08);
+}
+
 .accordion-content {
   padding: 20px;
   display: flex;
@@ -706,6 +751,13 @@ input:hover, select:hover, textarea:hover {
   background: rgba(6,12,28,0.75);
 }
 
+:root.light-theme input:hover,
+:root.light-theme select:hover,
+:root.light-theme textarea:hover {
+  background: #fff;
+  border-color: rgba(37,99,235,0.28);
+}
+
 input:focus, select:focus, textarea:focus {
   border-color: var(--brand-blue);
   background: rgba(6,12,28,0.9);
@@ -715,6 +767,12 @@ input:focus, select:focus, textarea:focus {
   transform: translateY(-1px);
 }
 
+:root.light-theme input:focus,
+:root.light-theme select:focus,
+:root.light-theme textarea:focus {
+  background: #fff;
+}
+
 select { cursor: pointer; appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2360a5fa' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -722,6 +780,11 @@ select { cursor: pointer; appearance: none;
   padding-right: 36px;
 }
 select option { background: #0d1b36; color: var(--text-primary); }
+
+:root.light-theme select option {
+  background: #fff;
+  color: var(--text-primary);
+}
 
 input[type="checkbox"] {
   accent-color: var(--brand-blue);
@@ -761,6 +824,14 @@ input[type="checkbox"]:focus { transform: none; }
   letter-spacing: normal;
 }
 
+:root.light-theme .check-row {
+  background: rgba(255,255,255,0.86);
+}
+
+:root.light-theme .check-row span {
+  color: var(--text-primary);
+}
+
 textarea { resize: vertical; min-height: 76px; line-height: 1.55; }
 
 .custom-size-grid {
@@ -770,7 +841,7 @@ textarea { resize: vertical; min-height: 76px; line-height: 1.55; }
 }
 
 .form-hint {
-  color: #4b6280;
+  color: var(--text-muted);
   font-size: 0.78rem;
   line-height: 1.5;
   margin: 8px 0 0;
@@ -778,6 +849,10 @@ textarea { resize: vertical; min-height: 76px; line-height: 1.55; }
   background: rgba(255,255,255,0.02);
   border-radius: var(--r-sm);
   border-left: 2px solid rgba(59,130,246,0.3);
+}
+
+:root.light-theme .form-hint {
+  background: rgba(15,23,42,0.035);
 }
 
 /* ─── Export Formats ─── */
@@ -836,6 +911,10 @@ textarea { resize: vertical; min-height: 76px; line-height: 1.55; }
   font-size: 0.86rem;
 }
 
+:root.light-theme .export-card strong {
+  color: var(--text-primary);
+}
+
 .export-card span {
   color: var(--text-muted);
   font-size: 0.72rem;
@@ -846,6 +925,16 @@ textarea { resize: vertical; min-height: 76px; line-height: 1.55; }
 /* ─── Overleaf Builder ─── */
 .overleaf-panel {
   gap: 14px;
+}
+
+.overleaf-panel label > span {
+  color: #eaf2ff;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+:root.light-theme .overleaf-panel label > span {
+  color: var(--text-primary);
 }
 
 .template-summary {
@@ -866,6 +955,10 @@ textarea { resize: vertical; min-height: 76px; line-height: 1.55; }
   color: #dfffee;
   font-size: 0.92rem;
   margin-bottom: 4px;
+}
+
+:root.light-theme .template-summary strong {
+  color: var(--text-primary);
 }
 
 .template-summary span {
@@ -961,6 +1054,12 @@ textarea { resize: vertical; min-height: 76px; line-height: 1.55; }
   padding: 6px 10px;
 }
 
+:root.light-theme .section-pill-grid span {
+  background: rgba(37,99,235,0.10);
+  border-color: rgba(37,99,235,0.20);
+  color: #1d4ed8;
+}
+
 .latex-actions {
   display: grid;
   gap: 8px;
@@ -975,12 +1074,35 @@ textarea { resize: vertical; min-height: 76px; line-height: 1.55; }
 }
 
 .latex-preview {
-  min-height: 260px;
-  white-space: pre;
-  overflow: auto;
+  background: #f8fafc;
+  border: 1.5px solid rgba(96, 165, 250, 0.45);
+  box-shadow:
+    0 14px 32px rgba(2, 8, 23, 0.28),
+    0 0 0 3px rgba(59, 130, 246, 0.08);
+  color: #0f172a;
   font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
-  font-size: 0.74rem;
-  line-height: 1.55;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.7;
+  min-height: 340px;
+  overflow: auto;
+  padding: 16px;
+  tab-size: 2;
+  white-space: pre;
+}
+
+.latex-preview:focus {
+  background: #ffffff;
+  border-color: #60a5fa;
+  box-shadow:
+    0 0 0 3px rgba(96, 165, 250, 0.22),
+    0 16px 36px rgba(2, 8, 23, 0.34);
+}
+
+.latex-preview::selection,
+.command-card pre::selection {
+  background: rgba(37, 99, 235, 0.24);
+  color: #020817;
 }
 
 .command-finder {
@@ -1018,8 +1140,8 @@ textarea { resize: vertical; min-height: 76px; line-height: 1.55; }
 }
 
 .command-card {
-  background: rgba(255,255,255,0.025);
-  border: 1px solid var(--border-subtle);
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(96, 165, 250, 0.16);
   border-radius: var(--r-md);
   display: grid;
   gap: 10px;
@@ -1035,6 +1157,21 @@ textarea { resize: vertical; min-height: 76px; line-height: 1.55; }
   color: #e8f0ff;
   font-size: 0.84rem;
   margin-bottom: 3px;
+}
+
+:root.light-theme .command-card strong {
+  color: #f8fafc;
+}
+
+:root.light-theme .command-card .ui-button-secondary {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.16);
+  color: #f8fafc;
+}
+
+:root.light-theme .command-card .ui-button-secondary:hover {
+  background: rgba(255,255,255,0.13);
+  color: #fff;
 }
 
 .command-category {
@@ -1053,23 +1190,25 @@ textarea { resize: vertical; min-height: 76px; line-height: 1.55; }
 }
 
 .command-card span {
-  color: var(--text-muted);
+  color: #a9bad4;
   font-size: 0.72rem;
   line-height: 1.4;
 }
 
 .command-card pre {
-  background: rgba(2,8,23,0.78);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: #f8fafc;
+  border: 1px solid rgba(96, 165, 250, 0.32);
   border-radius: var(--r-sm);
-  color: #dbeafe;
+  color: #0f172a;
   font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
-  font-size: 0.68rem;
-  line-height: 1.45;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.62;
   margin: 0;
   max-height: 180px;
   overflow: auto;
-  padding: 11px;
+  padding: 12px;
+  tab-size: 2;
   white-space: pre;
 }
 
@@ -1147,6 +1286,10 @@ textarea { resize: vertical; min-height: 76px; line-height: 1.55; }
   font-size: 0.84rem;
   font-weight: 700;
   letter-spacing: -0.01em;
+}
+
+:root.light-theme .utility-link-card h4 {
+  color: var(--text-primary);
 }
 
 .utility-link-card small {
@@ -1231,7 +1374,7 @@ textarea { resize: vertical; min-height: 76px; line-height: 1.55; }
 }
 
 .toolbar-title {
-  color: #4b6280;
+  color: var(--text-muted);
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -2011,7 +2154,7 @@ footer p {
   padding: 5px 12px;
   font-size: 0.68rem;
   font-weight: 700;
-  color: #4b6280;
+  color: var(--text-muted);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2041,7 +2184,7 @@ footer p {
   background: transparent;
   border: none;
   border-radius: 0;
-  color: #4b6280;
+  color: var(--text-muted);
   font-size: 0.82rem;
   font-weight: 700;
   padding: 12px 0;

@@ -290,7 +290,7 @@ function countWords(value = "") {
 function getCounterTone(count, limit) {
   if (count > limit) return "#ef4444";
   if (count > limit * 0.8) return "#f97316";
-  return "#22c55e";
+  return "#15803d";
 }
 
 function toRoman(num) {
