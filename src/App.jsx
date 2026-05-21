@@ -1129,6 +1129,8 @@ function EditorForm({
 /* ════════════════════════════════════
    MAIN APP
 ════════════════════════════════════ */
+let hitPromise = null;
+
 function App() {
   const [formData, setFormData] = useState(defaultData);
   const cardRef = useRef(null);
@@ -1140,8 +1142,44 @@ function App() {
   const [activeSection, setActiveSection] = useState("report");
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState("editor");
+  const [visitCount, setVisitCount] = useState(null);
 
   useParticles(canvasRef);
+
+  useEffect(() => {
+    // 1. Initial hit (increments count by 1 and gets the new value)
+    // We use a shared module-level promise to guarantee it only hits once per page load,
+    // preventing double-counting or race conditions in StrictMode remounts.
+    if (!hitPromise) {
+      hitPromise = fetch("https://countapi.mileshilliard.com/api/v1/hit/sub_lab_cover_letter_visits")
+        .then((res) => res.json())
+        .catch((err) => {
+          console.error("Error registering visit:", err);
+          hitPromise = null; // Reset to allow retry on next mount
+          return null;
+        });
+    }
+
+    hitPromise.then((data) => {
+      if (data && typeof data.value === "number") {
+        setVisitCount(data.value);
+      }
+    });
+
+    // 2. Auto-refresh / polling interval to fetch updates every 7 seconds
+    const interval = setInterval(() => {
+      fetch("https://countapi.mileshilliard.com/api/v1/get/sub_lab_cover_letter_visits")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && typeof data.value === "number") {
+            setVisitCount(data.value);
+          }
+        })
+        .catch((err) => console.error("Error polling visits:", err));
+    }, 7000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const toggleSection = (s) => setActiveSection((c) => (c === s ? null : s));
 
@@ -1410,7 +1448,19 @@ function App() {
       {/* ════ EDITOR PANEL ════ */}
       <section className={`editor-panel ${mobileTab === "editor" ? "mobile-visible" : "mobile-hidden"}`}>
         <div className="panel-header">
-          <p className="eyebrow">SUB Lab Report</p>
+          <div className="header-top-row">
+            <p className="eyebrow">SUB Lab Report</p>
+            {visitCount !== null && (
+              <div className="visit-badge">
+                <span className="visit-dot" />
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="visit-icon">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                <span>{visitCount.toLocaleString()} visits</span>
+              </div>
+            )}
+          </div>
           <h1>Cover Page Generator</h1>
           <p className="hero-subtitle">Fill in the details and instantly generate a print-ready cover page with official SUB branding.</p>
         </div>

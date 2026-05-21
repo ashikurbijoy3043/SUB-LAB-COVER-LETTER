@@ -200,6 +200,15 @@ button, input, select, textarea {
   pointer-events: none;
 }
 
+.header-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
 .eyebrow {
   display: inline-flex;
   align-items: center;
@@ -208,12 +217,47 @@ button, input, select, textarea {
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.18em;
-  margin: 0 0 10px;
+  margin: 0;
   text-transform: uppercase;
   padding: 4px 12px;
-  background: rgba(59,130,246,0.12);
+  background: rgba(59, 130, 246, 0.12);
   border-radius: var(--r-pill);
-  border: 1px solid rgba(59,130,246,0.25);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.visit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-subtle);
+  transition: all var(--t-fast) var(--ease-fast);
+}
+
+.visit-badge:hover {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.25);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.visit-dot {
+  width: 6px;
+  height: 6px;
+  background: #22c55e;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #22c55e;
+  animation: pulse 1.8s ease infinite;
+}
+
+.visit-icon {
+  color: var(--text-accent);
+  opacity: 0.8;
 }
 
 .eyebrow::before {
