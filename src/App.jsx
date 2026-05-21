@@ -20,6 +20,15 @@ const DEPARTMENT_LOGOS = {
   "public-health": `${ASSET_BASE_URL}department-public-health.jpg`
 };
 
+const FONT_MAPPING = {
+  georgia: '"Georgia", "Times New Roman", Times, serif',
+  times: '"Times New Roman", Times, Georgia, serif',
+  garamond: '"EB Garamond", Garamond, Georgia, serif',
+  inter: '"Inter", sans-serif',
+  outfit: '"Outfit", "Inter", sans-serif',
+  firacode: '"Fira Code", Courier New, Courier, monospace'
+};
+
 const defaultData = {
   pageSize: "a4",
   customWidthMm: "210",
@@ -53,13 +62,270 @@ const defaultData = {
   useCustomLogo: false,
   customLogoUrl: "",
   useCustomSignature: false,
-  customSignatureUrl: ""
+  customSignatureUrl: "",
+  fontFamily: "georgia",
+  headingFont: "georgia",
+  bodyFont: "georgia",
+  titleAlign: "center",
+  courseAlign: "center",
+  isGroupMode: false,
+  groupStudents: [
+    { name: "ASHIKUR RAHMAN JOY", roll: "UG02-69-26-006", registration: "", status: "Undergraduate Student", year: "1st", semester: "1st", group: "", session: "" }
+  ],
+  accentColor: "#1e3a5f",
+  // Cover design extras
+  bgPattern: "none",
+  useBannerImage: false,
+  bannerImageUrl: "",
+  coverDarkMode: false,
+  watermarkText: "",
+  watermarkOpacity: "0.07",
+  // QR code
+  showQrCode: false,
+  qrCodeUrl: "",
+  // Deadline countdown
+  submissionDeadline: "",
+  // Page numbering
+  pageNumberStyle: "arabic",
+  pageNumberStart: "1",
+  // Language
+  lang: "en"
 };
+
+function hexToRgba(hex, alpha = 1) {
+  if (!hex) return `rgba(30, 58, 95, ${alpha})`;
+  const cleaned = hex.replace("#", "");
+  if (cleaned.length !== 6) return `rgba(30, 58, 95, ${alpha})`;
+  const r = parseInt(cleaned.substring(0, 2), 16);
+  const g = parseInt(cleaned.substring(2, 4), 16);
+  const b = parseInt(cleaned.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function SignatureDrawingPad({ onSave, onClear }) {
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+  }, []);
+
+  const getCoordinates = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches && e.touches.length > 0) {
+      return {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top
+      };
+    }
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+  };
+
+  const startDrawing = (e) => {
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const { x, y } = getCoordinates(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    setIsDrawing(true);
+  };
+
+  const draw = (e) => {
+    if (!isDrawing) return;
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const { x, y } = getCoordinates(e);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const handleClear = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    onClear();
+  };
+
+  const handleSave = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const blank = document.createElement("canvas");
+    blank.width = canvas.width;
+    blank.height = canvas.height;
+    if (canvas.toDataURL() === blank.toDataURL()) {
+      Swal.fire({
+        title: "Blank Canvas",
+        text: "Please draw something on the canvas before saving.",
+        icon: "warning",
+        timer: 1800,
+        showConfirmButton: false,
+        background: "#0f172a",
+        color: "#e8f0ff"
+      });
+      return;
+    }
+    const dataUrl = canvas.toDataURL("image/png");
+    onSave(dataUrl);
+  };
+
+  return (
+    <div className="signature-pad-wrapper" style={{ marginTop: "10px", padding: "10px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "6px" }}>
+      <span style={{ display: "block", fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: "6px", fontWeight: "500" }}>Or draw signature here (optional):</span>
+      <canvas
+        ref={canvasRef}
+        width={280}
+        height={100}
+        onMouseDown={startDrawing}
+        onMouseMove={draw}
+        onMouseUp={stopDrawing}
+        onMouseLeave={stopDrawing}
+        onTouchStart={startDrawing}
+        onTouchMove={draw}
+        onTouchEnd={stopDrawing}
+        style={{
+          border: "1px solid var(--border-subtle)",
+          background: "#ffffff",
+          borderRadius: "4px",
+          display: "block",
+          cursor: "crosshair",
+          touchAction: "none",
+          width: "100%",
+          maxWidth: "280px"
+        }}
+      />
+      <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+        <button
+          type="button"
+          className="toolbar-btn"
+          onClick={handleSave}
+          style={{ fontSize: "0.75rem", padding: "6px 10px", height: "auto" }}
+        >
+          Save Signature
+        </button>
+        <button
+          type="button"
+          className="toolbar-btn"
+          onClick={handleClear}
+          style={{ fontSize: "0.75rem", padding: "6px 10px", height: "auto", background: "transparent", border: "1px solid var(--border-subtle)" }}
+        >
+          Clear
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const optionalFields = new Set(["group", "session", "registration", "departmentLogoUrl"]);
 
+const TRANSLATIONS = {
+  en: {
+    courseCode: "Course Code",
+    courseTitle: "Course Title",
+    experimentNo: "Experiment No.",
+    labProgramNo: "Lab / Program No.",
+    experimentDate: "Experiment Date",
+    academicSubmission: "Academic Submission",
+    submittedTo: "Submitted To",
+    submittedBy: "Submitted By",
+    dateOfSubmission: "Date of Submission",
+    name: "Name",
+    status: "Status",
+    year: "Year",
+    semester: "Semester",
+    group: "Group",
+    session: "Session",
+    rollNo: "Roll No.",
+    regNo: "Reg. No."
+  },
+  bn: {
+    courseCode: "কোর্স কোড",
+    courseTitle: "কোর্সের শিরোনাম",
+    experimentNo: "এক্সপেরিমেন্ট নং",
+    labProgramNo: "ল্যাব / প্রোগ্রাম নং",
+    experimentDate: "এক্সপেরিমেন্টের তারিখ",
+    academicSubmission: "একাডেমিক জমাদান",
+    submittedTo: "জমা দেওয়া হয়েছে",
+    submittedBy: "জমা দিয়েছে",
+    dateOfSubmission: "জমাদানের তারিখ",
+    name: "নাম",
+    status: "স্ট্যাটাস",
+    year: "বর্ষ",
+    semester: "সেমিস্টার",
+    group: "গ্রুপ",
+    session: "সেশন",
+    rollNo: "রোল নং",
+    regNo: "রেজি. নং"
+  }
+};
+
+function t(formData, key) {
+  const lang = formData?.lang === "bn" ? "bn" : "en";
+  return TRANSLATIONS[lang][key] ?? TRANSLATIONS.en[key] ?? key;
+}
+
+function countWords(value = "") {
+  return String(value).trim().split(/\s+/).filter(Boolean).length;
+}
+
+function getCounterTone(count, limit) {
+  if (count > limit) return "#ef4444";
+  if (count > limit * 0.8) return "#f97316";
+  return "#22c55e";
+}
+
+function toRoman(num) {
+  const value = Math.max(1, Number(num) || 1);
+  const map = [["m", 1000], ["cm", 900], ["d", 500], ["cd", 400], ["c", 100], ["xc", 90], ["l", 50], ["xl", 40], ["x", 10], ["ix", 9], ["v", 5], ["iv", 4], ["i", 1]];
+  let n = value;
+  let out = "";
+  for (const [roman, arabic] of map) {
+    while (n >= arabic) {
+      out += roman;
+      n -= arabic;
+    }
+  }
+  return out;
+}
+
+function getPageNumber(formData, offset = 0) {
+  if (formData.pageNumberStyle === "none") return "";
+  const page = Math.max(1, Number(formData.pageNumberStart) || 1) + offset;
+  return formData.pageNumberStyle === "roman" ? toRoman(page) : String(page);
+}
+
+function PageNumber({ formData, offset = 0 }) {
+  const pageNumber = getPageNumber(formData, offset);
+  return pageNumber ? <div className="page-number">{pageNumber}</div> : null;
+}
+
+function isMissingRequiredField(formData, key) {
+  if (key === "experimentNo") return !formData.experimentNoOptional && !formData.experimentNo?.trim();
+  if (key === "submittedByName") return !formData.isGroupMode && !formData.submittedByName?.trim();
+  return ["reportTitle", "courseCode", "courseTitle", "teacherName"].includes(key) && !formData[key]?.trim();
+}
+
 function getExperimentNoLabel(formData) {
-  return formData.departmentPreset === "cse" ? "Lab / Program No." : "Experiment No.";
+  return formData.departmentPreset === "cse" ? t(formData, "labProgramNo") : t(formData, "experimentNo");
 }
 
 function getFieldLabel(formData, key, fallbackLabel) {
@@ -76,10 +342,10 @@ function isRequiredField(formData, key) {
 
 function getCourseRows(formData) {
   return [
-    ["Course Code", formData.courseCode, false],
-    ["Course Title", formData.courseTitle, false],
+    [t(formData, "courseCode"), formData.courseCode, false],
+    [t(formData, "courseTitle"), formData.courseTitle, false],
     [getExperimentNoLabel(formData), formData.experimentNo, formData.experimentNoOptional],
-    ["Experiment Date", formData.experimentDate, false]
+    [t(formData, "experimentDate"), formData.experimentDate, false]
   ].filter(([, value, optional]) => !optional || value.trim());
 }
 
@@ -89,8 +355,11 @@ const exportFormats = [
   { id: "jpg", label: "JPG image", hint: "Small image file" },
   { id: "svg", label: "SVG vector", hint: "Editable vector preview" },
   { id: "docx", label: "Word DOCX", hint: "Editable Word cover" },
-  { id: "pptx", label: "PowerPoint PPTX", hint: "Slide-ready cover" }
+  { id: "pptx", label: "PowerPoint PPTX", hint: "Slide-ready cover" },
+  { id: "zip", label: "ZIP bundle", hint: "PDF + DOCX together" }
 ];
+
+const pageRenderOrder = ["cover", "abstract", "acknowledgement", "transmittal", "toc", "labInfo", "references", "appendix", "certificate", "rubric"];
 
 const pageSizes = [
   { id: "a4",     label: "A4",     widthMm: 210, heightMm: 297 },
@@ -485,34 +754,60 @@ async function buildDocxCover(formData, studentRows, selectedPage) {
           rows: makeKeyValueRows(infoRows)
         }),
         makeDocxParagraph(docx, "Academic Submission", { alignment: AlignmentType.CENTER, bold: true, size: 20, spacing: { before: 420, after: 180 } }),
-        new Table({
-          width: { size: 100, type: WidthType.PERCENTAGE },
-          rows: [
-            new TableRow({
-              children: [
-                new TableCell({
-                  borders: blankBorders,
-                  width: { size: 50, type: WidthType.PERCENTAGE },
-                  children: [
-                    makeDocxParagraph(docx, "Submitted To:", { bold: true }),
-                    ...submittedTo.split("\n").map((line) => makeDocxParagraph(docx, line))
-                  ]
-                }),
-                new TableCell({
-                  borders: blankBorders,
-                  width: { size: 50, type: WidthType.PERCENTAGE },
-                  children: [
-                    makeDocxParagraph(docx, "Submitted By:", { bold: true }),
-                    new Table({
-                      width: { size: 100, type: WidthType.PERCENTAGE },
-                      rows: makeKeyValueRows(studentRows)
-                    })
-                  ]
-                })
-              ]
-            })
-          ]
-        }),
+        (() => {
+          let submittedByChildren = [makeDocxParagraph(docx, "Submitted By:", { bold: true })];
+          if (formData.isGroupMode && formData.groupStudents && formData.groupStudents.length > 0) {
+            formData.groupStudents.forEach((student, index) => {
+              submittedByChildren.push(makeDocxParagraph(docx, student.name || "Student Name", { bold: true, spacing: { before: 120, after: 60 } }));
+              const rows = [
+                ["Roll No.", student.roll],
+                ["Reg. No.", student.registration],
+                ["Status", student.status],
+                ["Year", student.year],
+                ["Semester", student.semester],
+                ["Group", student.group],
+                ["Session", student.session]
+              ].filter(([, v]) => v && v.trim());
+              
+              rows.forEach(([label, value]) => {
+                submittedByChildren.push(makeDocxParagraph(docx, `${label}: ${value}`, { spacing: { after: 40 } }));
+              });
+              if (index < formData.groupStudents.length - 1) {
+                submittedByChildren.push(makeDocxParagraph(docx, "--------------------", { spacing: { before: 60, after: 60 } }));
+              }
+            });
+          } else {
+            submittedByChildren.push(
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: makeKeyValueRows(studentRows)
+              })
+            );
+          }
+
+          return new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              new TableRow({
+                children: [
+                  new TableCell({
+                    borders: blankBorders,
+                    width: { size: 50, type: WidthType.PERCENTAGE },
+                    children: [
+                      makeDocxParagraph(docx, "Submitted To:", { bold: true }),
+                      ...submittedTo.split("\n").map((line) => makeDocxParagraph(docx, line))
+                    ]
+                  }),
+                  new TableCell({
+                    borders: blankBorders,
+                    width: { size: 50, type: WidthType.PERCENTAGE },
+                    children: submittedByChildren
+                  })
+                ]
+              })
+            ]
+          });
+        })(),
         makeDocxParagraph(docx, `Date of Submission: ${formData.submissionDate}`, { alignment: AlignmentType.CENTER, bold: true, spacing: { before: 420, after: 420 } }),
         makeDocxParagraph(docx, formData.department, { alignment: AlignmentType.CENTER, bold: true, size: 20 }),
         makeDocxParagraph(docx, formData.university, { alignment: AlignmentType.CENTER, bold: true, size: 20 })
@@ -574,9 +869,23 @@ ${courseRows}
     \\hfill
     \\begin{minipage}{0.45\\textwidth}
         \\textbf{Submitted By:}\\\\[0.2cm]
-        \\begin{tabular}{rl}
-${rows}
-        \\end{tabular}
+        ${formData.isGroupMode && formData.groupStudents && formData.groupStudents.length > 0 ? (
+          formData.groupStudents.map((student) => {
+            const sRows = [
+              ["Roll No.", student.roll],
+              ["Reg. No.", student.registration],
+              ["Status", student.status],
+              ["Year", student.year],
+              ["Semester", student.semester],
+              ["Group", student.group],
+              ["Session", student.session]
+            ].filter(([, v]) => v && v.trim());
+            const tableRows = sRows
+              .map(([lbl, val]) => `        \\textbf{${escapeLatex(lbl)}:} & ${escapeLatex(val)} \\\\`)
+              .join("\n");
+            return `\\textbf{${escapeLatex(student.name)}}\\\\\n        \\begin{tabular}{rl}\n${tableRows}\n        \\end{tabular}`;
+          }).join("\n\n        \\vspace{0.3cm}\n        ")
+        ) : `\\begin{tabular}{rl}\n${rows}\n        \\end{tabular}`}
     \\end{minipage}
 
     \\vfill
@@ -713,7 +1022,7 @@ function useParticles(canvasRef) {
    LIGHTBOX COMPONENT
    Shows full-screen zoomable preview
 ════════════════════════════════════ */
-function Lightbox({ children, onClose }) {
+function Lightbox({ children, onClose, onPrint }) {
   // Close on Escape key
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -733,7 +1042,12 @@ function Lightbox({ children, onClose }) {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
-        Double-click or press <kbd>Esc</kbd> to close
+        Print preview with margin guides
+        {onPrint && (
+          <button type="button" className="lightbox-print" onClick={onPrint}>
+            Print
+          </button>
+        )}
       </div>
       <div className="lightbox-content" onClick={(e) => e.stopPropagation()} onDoubleClick={onClose}>
         {children}
@@ -757,7 +1071,7 @@ function CoverPage({
   showGuides
 }) {
   return (
-    <div className={`paper layout-${formData.layoutTheme || "classic"}`} style={paperStyle} ref={cardRef}>
+    <div className={`paper layout-${formData.layoutTheme || "classic"} pattern-${formData.bgPattern || "none"} ${formData.coverDarkMode ? "cover-dark" : ""}`} style={paperStyle} ref={cardRef}>
       {is3D && <div className="paper-glare" />}
       <div className="paper-texture" />
       <div className="paper-edge-left" />
@@ -765,7 +1079,9 @@ function CoverPage({
       <div className="paper-top-bar" />
       <div className="paper-bottom-bar" />
       <div className="paper-border-frame" />
-      <div className="paper-watermark">SUB</div>
+      <div className="paper-watermark custom-watermark" style={formData.watermarkText ? { opacity: formData.watermarkOpacity || 0.07 } : undefined}>
+        {formData.watermarkText || "SUB"}
+      </div>
 
       {showGrid && <div className="paper-grid-overlay no-print" data-html2canvas-ignore="true" />}
       {showGuides && <div className="paper-guides-overlay no-print" data-html2canvas-ignore="true" />}
@@ -796,7 +1112,13 @@ function CoverPage({
         </>
       )}
 
-      <div className="title-block">
+      {formData.useBannerImage && formData.bannerImageUrl && (
+        <div className="cover-banner">
+          <img src={formData.bannerImageUrl} alt="Custom cover banner" />
+        </div>
+      )}
+
+      <div className="title-block" style={formData.titleAlign ? { textAlign: formData.titleAlign } : undefined}>
         <p>{formData.reportPrefix}</p>
         <h2>{formData.reportTitle}</h2>
       </div>
@@ -808,17 +1130,17 @@ function CoverPage({
         )}
       </div>
 
-      <div className="course-info">
+      <div className="course-info" style={formData.courseAlign ? { textAlign: formData.courseAlign } : undefined}>
         {getCourseRows(formData).map(([label, value]) => (
           <p key={label}><strong>{label}:</strong> {value}</p>
         ))}
       </div>
 
-      <div className="section-divider"><span>Academic Submission</span></div>
+      <div className="section-divider"><span>{t(formData, "academicSubmission")}</span></div>
 
-      <div className="submission-grid">
+       <div className="submission-grid">
         <div>
-          <h3>Submitted To:</h3>
+          <h3>{t(formData, "submittedTo")}:</h3>
           <div className="rule" />
           <p className="person-name">{formData.teacherName}</p>
           <p><em>{formData.teacherTitle}</em></p>
@@ -826,7 +1148,7 @@ function CoverPage({
           <p>{formData.university}</p>
         </div>
         <div>
-          <h3>Submitted By:</h3>
+          <h3>{t(formData, "submittedBy")}:</h3>
           <div className="rule" />
           {formData.useCustomSignature && formData.customSignatureUrl ? (
             <div className="signature-container" style={{ margin: "4px 0", textAlign: "left" }}>
@@ -837,26 +1159,62 @@ function CoverPage({
               />
             </div>
           ) : null}
-          <dl>
-            {studentRows.map(([label, value]) => (
-              <div key={label}><dt>{label}:</dt><dd>{value}</dd></div>
-            ))}
-          </dl>
+          {formData.isGroupMode && formData.groupStudents && formData.groupStudents.length > 0 ? (
+            <div className="group-submission-grid-container">
+              {formData.groupStudents.map((student, idx) => {
+                const sRows = [
+                  ["Roll No.", student.roll],
+                  ["Reg. No.", student.registration],
+                  ["Status", student.status],
+                  ["Year", student.year],
+                  ["Semester", student.semester],
+                  ["Group", student.group],
+                  ["Session", student.session]
+                ].filter(([, v]) => v && v.trim());
+                return (
+                  <div className="group-student-card" key={idx}>
+                    <div className="group-student-name">{student.name || "Student Name"}</div>
+                    <dl>
+                      {sRows.map(([label, value]) => (
+                        <div key={label}><dt>{label}:</dt><dd>{value}</dd></div>
+                      ))}
+                    </dl>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <dl>
+              {studentRows.map(([label, value]) => (
+                <div key={label}><dt>{label}:</dt><dd>{value}</dd></div>
+              ))}
+            </dl>
+          )}
         </div>
       </div>
 
-      <p className="date-line"><strong>Date of Submission:</strong> {formData.submissionDate}</p>
+      <p className="date-line"><strong>{t(formData, "dateOfSubmission")}:</strong> {formData.submissionDate}</p>
+
+      {formData.showQrCode && formData.qrCodeUrl && (
+        <div className="cover-qr">
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(formData.qrCodeUrl)}`}
+            alt="Cover QR code"
+          />
+        </div>
+      )}
 
       <footer>
         <div className="footer-rule" />
         <p>{formData.department}</p>
         <p>{formData.university}</p>
       </footer>
+      <PageNumber formData={formData} />
     </div>
   );
 }
 
-function AcknowledgementPage({ paperStyle, ackData, showRulers, showGrid, showGuides, selectedPage, cardRef }) {
+function AcknowledgementPage({ paperStyle, ackData, showRulers, showGrid, showGuides, selectedPage, cardRef, formData, pageOffset = 0 }) {
   return (
     <div className="paper" style={paperStyle} ref={cardRef}>
       <div className="paper-texture" />
@@ -895,11 +1253,12 @@ function AcknowledgementPage({ paperStyle, ackData, showRulers, showGrid, showGu
         <h2 className="page-title">{ackData.title || "ACKNOWLEDGEMENT"}</h2>
         <div className="academic-body">{ackData.body}</div>
       </div>
+      <PageNumber formData={formData} offset={pageOffset} />
     </div>
   );
 }
 
-function TransmittalPage({ formData, paperStyle, transmittalData, showRulers, showGrid, showGuides, selectedPage, cardRef }) {
+function TransmittalPage({ formData, paperStyle, transmittalData, showRulers, showGrid, showGuides, selectedPage, cardRef, pageOffset = 0 }) {
   return (
     <div className="paper" style={paperStyle} ref={cardRef}>
       <div className="paper-texture" />
@@ -964,17 +1323,30 @@ function TransmittalPage({ formData, paperStyle, transmittalData, showRulers, sh
               <div className="signature-line" />
             )}
           </div>
-          <p><strong>{formData.submittedByName}</strong></p>
-          <p>Roll: {formData.roll}</p>
-          {formData.registration && <p>Registration: {formData.registration}</p>}
+          {formData.isGroupMode && formData.groupStudents && formData.groupStudents.length > 0 ? (
+            formData.groupStudents.map((s, idx) => (
+              <div key={idx} style={{ marginTop: "10px", borderBottom: "1px dashed var(--border-subtle)", paddingBottom: "6px" }}>
+                <p><strong>{s.name || "Student Name"}</strong></p>
+                <p>Roll: {s.roll || "-"}</p>
+                {s.registration && <p>Registration: {s.registration}</p>}
+              </div>
+            ))
+          ) : (
+            <>
+              <p><strong>{formData.submittedByName}</strong></p>
+              <p>Roll: {formData.roll}</p>
+              {formData.registration && <p>Registration: {formData.registration}</p>}
+            </>
+          )}
           <p>{formData.department}</p>
         </div>
       </div>
+      <PageNumber formData={formData} offset={pageOffset} />
     </div>
   );
 }
 
-function TocPage({ paperStyle, tocData, showRulers, showGrid, showGuides, selectedPage, cardRef }) {
+function TocPage({ paperStyle, tocData, showRulers, showGrid, showGuides, selectedPage, cardRef, onTocClick, formData, pageOffset = 0 }) {
   return (
     <div className="paper" style={paperStyle} ref={cardRef}>
       <div className="paper-texture" />
@@ -1014,7 +1386,7 @@ function TocPage({ paperStyle, tocData, showRulers, showGrid, showGuides, select
         
         <div className="toc-list">
           {tocData.map((item) => (
-            <div className="toc-row" key={item.id}>
+            <div className="toc-row" key={item.id} onClick={() => onTocClick && onTocClick(item)} title="Click to scroll to page">
               <span className="toc-title">{item.title}</span>
               <span className="toc-dots" />
               <span className="toc-page">{item.pageNo}</span>
@@ -1022,6 +1394,276 @@ function TocPage({ paperStyle, tocData, showRulers, showGrid, showGuides, select
           ))}
         </div>
       </div>
+      <PageNumber formData={formData} offset={pageOffset} />
+    </div>
+  );
+}
+
+/* ═══ ABSTRACT PAGE ═══ */
+function AbstractPage({ paperStyle, showRulers, showGrid, showGuides, selectedPage, cardRef, abstractData, formData, pageOffset = 0 }) {
+  const wordCount = (abstractData?.body || "").trim().split(/\s+/).filter(Boolean).length;
+  return (
+    <div className="paper" style={paperStyle} ref={cardRef}>
+      <div className="paper-texture" /><div className="paper-edge-left" /><div className="paper-edge-bottom" />
+      {showGrid && <div className="paper-grid-overlay no-print" data-html2canvas-ignore="true" />}
+      {showGuides && <div className="paper-guides-overlay no-print" data-html2canvas-ignore="true" />}
+      {showRulers && selectedPage && (
+        <>
+          <div className="paper-ruler-x no-print" data-html2canvas-ignore="true" style={{ height: "16px", paddingLeft: "16px" }}>
+            {Array.from({ length: Math.ceil(selectedPage.widthMm / 10) + 1 }).map((_, i) => {
+              const pos = (i * 10 / selectedPage.widthMm) * 100;
+              return <div key={i} style={{ position: "absolute", left: `calc(${pos}% + 16px)`, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center", width: "20px", transform: "translateX(-50%)" }}><span style={{ fontSize: "6px", lineHeight: "1" }}>{i * 10}</span><div style={{ width: "1px", height: "4px", background: "#64748b", marginTop: "1px" }} /></div>;
+            })}
+          </div>
+          <div className="paper-ruler-y no-print" data-html2canvas-ignore="true" style={{ width: "16px", paddingTop: "16px" }}>
+            {Array.from({ length: Math.ceil(selectedPage.heightMm / 10) + 1 }).map((_, i) => {
+              const pos = (i * 10 / selectedPage.heightMm) * 100;
+              return <div key={i} style={{ position: "absolute", top: `calc(${pos}% + 16px)`, right: 0, display: "flex", alignItems: "center", height: "20px", transform: "translateY(-50%)" }}><span style={{ fontSize: "6px", marginRight: "2px" }}>{i * 10}</span><div style={{ height: "1px", width: "4px", background: "#64748b" }} /></div>;
+            })}
+          </div>
+        </>
+      )}
+      <div className="academic-page" id="page-abstract">
+        <h2 className="page-title">{abstractData?.title || "ABSTRACT"}</h2>
+        <div style={{ lineHeight: "1.9", fontSize: "0.97em", textAlign: "justify", marginBottom: "24px" }}>
+          {abstractData?.body || "Write your abstract here. Provide a concise summary of the experiment, methodology, key results, and conclusions."}
+        </div>
+        {abstractData?.keywords && (
+          <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid var(--accent-color-dim, rgba(30,58,95,0.25))" }}>
+            <strong style={{ color: "var(--accent-color, #1e3a5f)" }}>Keywords: </strong>
+            <span style={{ fontStyle: "italic" }}>{abstractData.keywords}</span>
+          </div>
+        )}
+        <div style={{ marginTop: "12px", fontSize: "0.78em", color: "#888", textAlign: "right" }}>{wordCount} words</div>
+      </div>
+      <PageNumber formData={formData} offset={pageOffset} />
+    </div>
+  );
+}
+
+/* ═══ REFERENCES PAGE ═══ */
+function ReferencesPage({ paperStyle, showRulers, showGrid, showGuides, selectedPage, cardRef, referencesData, formData, pageOffset = 0 }) {
+  return (
+    <div className="paper" style={paperStyle} ref={cardRef}>
+      <div className="paper-texture" /><div className="paper-edge-left" /><div className="paper-edge-bottom" />
+      {showGrid && <div className="paper-grid-overlay no-print" data-html2canvas-ignore="true" />}
+      {showGuides && <div className="paper-guides-overlay no-print" data-html2canvas-ignore="true" />}
+      {showRulers && selectedPage && (
+        <>
+          <div className="paper-ruler-x no-print" data-html2canvas-ignore="true" style={{ height: "16px", paddingLeft: "16px" }}>
+            {Array.from({ length: Math.ceil(selectedPage.widthMm / 10) + 1 }).map((_, i) => { const pos = (i * 10 / selectedPage.widthMm) * 100; return <div key={i} style={{ position: "absolute", left: `calc(${pos}% + 16px)`, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center", width: "20px", transform: "translateX(-50%)" }}><span style={{ fontSize: "6px", lineHeight: "1" }}>{i * 10}</span><div style={{ width: "1px", height: "4px", background: "#64748b", marginTop: "1px" }} /></div>; })}
+          </div>
+          <div className="paper-ruler-y no-print" data-html2canvas-ignore="true" style={{ width: "16px", paddingTop: "16px" }}>
+            {Array.from({ length: Math.ceil(selectedPage.heightMm / 10) + 1 }).map((_, i) => { const pos = (i * 10 / selectedPage.heightMm) * 100; return <div key={i} style={{ position: "absolute", top: `calc(${pos}% + 16px)`, right: 0, display: "flex", alignItems: "center", height: "20px", transform: "translateY(-50%)" }}><span style={{ fontSize: "6px", marginRight: "2px" }}>{i * 10}</span><div style={{ height: "1px", width: "4px", background: "#64748b" }} /></div>; })}
+          </div>
+        </>
+      )}
+      <div className="academic-page" id="page-references">
+        <h2 className="page-title">REFERENCES</h2>
+        <ol style={{ paddingLeft: "22px", lineHeight: "2.0" }}>
+          {(referencesData || []).map((ref, i) => (
+            <li key={ref.id} style={{ marginBottom: "10px", fontSize: "0.93em", textAlign: "justify" }}>
+              <span style={{ fontSize: "0.72em", fontWeight: "600", color: "var(--accent-color,#1e3a5f)", background: "var(--accent-color-glow,rgba(30,58,95,0.07))", padding: "1px 5px", borderRadius: "3px", marginRight: "6px" }}>{ref.style || "APA"}</span>
+              {ref.text || "Author, A. (Year). Title of work. Publisher."}
+            </li>
+          ))}
+        </ol>
+        {(!referencesData || referencesData.length === 0) && (
+          <p style={{ color: "#aaa", fontStyle: "italic" }}>No references added yet. Use the editor to add citations.</p>
+        )}
+      </div>
+      <PageNumber formData={formData} offset={pageOffset} />
+    </div>
+  );
+}
+
+/* ═══ LAB INFO PAGE ═══ */
+function LabInfoPage({ paperStyle, showRulers, showGrid, showGuides, selectedPage, cardRef, labInfoData, formData, pageOffset = 0 }) {
+  return (
+    <div className="paper" style={paperStyle} ref={cardRef}>
+      <div className="paper-texture" /><div className="paper-edge-left" /><div className="paper-edge-bottom" />
+      {showGrid && <div className="paper-grid-overlay no-print" data-html2canvas-ignore="true" />}
+      {showGuides && <div className="paper-guides-overlay no-print" data-html2canvas-ignore="true" />}
+      {showRulers && selectedPage && (
+        <>
+          <div className="paper-ruler-x no-print" data-html2canvas-ignore="true" style={{ height: "16px", paddingLeft: "16px" }}>
+            {Array.from({ length: Math.ceil(selectedPage.widthMm / 10) + 1 }).map((_, i) => { const pos = (i * 10 / selectedPage.widthMm) * 100; return <div key={i} style={{ position: "absolute", left: `calc(${pos}% + 16px)`, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center", width: "20px", transform: "translateX(-50%)" }}><span style={{ fontSize: "6px", lineHeight: "1" }}>{i * 10}</span><div style={{ width: "1px", height: "4px", background: "#64748b", marginTop: "1px" }} /></div>; })}
+          </div>
+          <div className="paper-ruler-y no-print" data-html2canvas-ignore="true" style={{ width: "16px", paddingTop: "16px" }}>
+            {Array.from({ length: Math.ceil(selectedPage.heightMm / 10) + 1 }).map((_, i) => { const pos = (i * 10 / selectedPage.heightMm) * 100; return <div key={i} style={{ position: "absolute", top: `calc(${pos}% + 16px)`, right: 0, display: "flex", alignItems: "center", height: "20px", transform: "translateY(-50%)" }}><span style={{ fontSize: "6px", marginRight: "2px" }}>{i * 10}</span><div style={{ height: "1px", width: "4px", background: "#64748b" }} /></div>; })}
+          </div>
+        </>
+      )}
+      <div className="academic-page" id="page-lab-info">
+        <h2 className="page-title">LAB INFORMATION</h2>
+        <table className="rubric-table" style={{ marginBottom: "24px" }}>
+          <tbody>
+            {[
+              ["Lab Room / Location", labInfoData?.labRoom || "—"],
+              ["Date of Experiment", formData?.experimentDate || "—"],
+              ["Course", `${formData?.courseCode || ""} — ${formData?.courseTitle || ""}`],
+              ["Instructor", `${formData?.teacherName || "—"} (${formData?.teacherTitle || ""})`],
+            ].map(([k, v]) => (
+              <tr key={k}><td style={{ fontWeight: "600", width: "40%" }}>{k}</td><td>{v}</td></tr>
+            ))}
+          </tbody>
+        </table>
+        {(labInfoData?.partners || []).length > 0 && (
+          <>
+            <h3 style={{ fontSize: "1em", fontWeight: "700", color: "var(--accent-color,#1e3a5f)", marginBottom: "8px" }}>Lab Partners</h3>
+            <ol style={{ paddingLeft: "20px", lineHeight: "2" }}>
+              {labInfoData.partners.map((p, i) => <li key={i}>{p || "—"}</li>)}
+            </ol>
+          </>
+        )}
+        {(labInfoData?.equipment || []).length > 0 && (
+          <>
+            <h3 style={{ fontSize: "1em", fontWeight: "700", color: "var(--accent-color,#1e3a5f)", margin: "16px 0 8px" }}>Equipment Used</h3>
+            <ul style={{ paddingLeft: "20px", lineHeight: "2" }}>
+              {labInfoData.equipment.map((e, i) => <li key={i}>{e || "—"}</li>)}
+            </ul>
+          </>
+        )}
+      </div>
+      <PageNumber formData={formData} offset={pageOffset} />
+    </div>
+  );
+}
+
+/* ═══ APPENDIX DIVIDER PAGE ═══ */
+function AppendixPage({ paperStyle, showRulers, showGrid, showGuides, selectedPage, cardRef, appendixData, formData, pageOffset = 0 }) {
+  return (
+    <div className="paper" style={paperStyle} ref={cardRef}>
+      <div className="paper-texture" /><div className="paper-edge-left" /><div className="paper-edge-bottom" />
+      {showGrid && <div className="paper-grid-overlay no-print" data-html2canvas-ignore="true" />}
+      {showGuides && <div className="paper-guides-overlay no-print" data-html2canvas-ignore="true" />}
+      <div className="academic-page" id="page-appendix" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "85%" }}>
+        <div style={{ border: "3px double var(--accent-color, #1e3a5f)", padding: "40px 60px", textAlign: "center" }}>
+          <div style={{ fontSize: "0.85em", letterSpacing: "0.25em", color: "var(--accent-color, #1e3a5f)", marginBottom: "12px", textTransform: "uppercase" }}>Section</div>
+          <div style={{ fontSize: "2.8em", fontWeight: "800", letterSpacing: "0.1em", color: "var(--accent-color, #1e3a5f)", lineHeight: "1.1" }}>{appendixData?.label || "APPENDIX A"}</div>
+          {appendixData?.subtitle && <div style={{ marginTop: "16px", fontSize: "1em", color: "#555" }}>{appendixData.subtitle}</div>}
+        </div>
+      </div>
+      <PageNumber formData={formData} offset={pageOffset} />
+    </div>
+  );
+}
+
+/* ═══ CERTIFICATE OF ORIGINALITY PAGE ═══ */
+function CertificatePage({ paperStyle, showRulers, showGrid, showGuides, selectedPage, cardRef, formData, pageOffset = 0 }) {
+  return (
+    <div className="paper" style={paperStyle} ref={cardRef}>
+      <div className="paper-texture" /><div className="paper-edge-left" /><div className="paper-edge-bottom" />
+      {showGrid && <div className="paper-grid-overlay no-print" data-html2canvas-ignore="true" />}
+      {showGuides && <div className="paper-guides-overlay no-print" data-html2canvas-ignore="true" />}
+      <div className="academic-page" id="page-certificate">
+        <h2 className="page-title">CERTIFICATE OF ORIGINALITY</h2>
+        <div style={{ border: "1px solid var(--accent-color-dim, rgba(30,58,95,0.3))", borderRadius: "6px", padding: "28px 32px", lineHeight: "2.0", fontSize: "0.97em", textAlign: "justify", background: "var(--accent-color-glow, rgba(30,58,95,0.03))" }}>
+          <p>I, <strong>{formData?.submittedByName || "_______________"}</strong>, hereby declare that the lab report titled</p>
+          <p style={{ fontStyle: "italic", margin: "12px 0", padding: "10px 16px", borderLeft: "3px solid var(--accent-color, #1e3a5f)" }}>"{formData?.reportTitle || "_______________"}"</p>
+          <p>submitted for the course <strong>{formData?.courseCode} — {formData?.courseTitle}</strong> is my own original work. I confirm that:</p>
+          <ul style={{ paddingLeft: "20px", marginTop: "12px" }}>
+            <li>The work has not been previously submitted for any academic credit.</li>
+            <li>All sources used have been properly cited and acknowledged.</li>
+            <li>I have not engaged in plagiarism, fabrication, or academic dishonesty.</li>
+          </ul>
+        </div>
+        <div className="rubric-signoff" style={{ marginTop: "40px" }}>
+          <div className="rubric-signoff-line">Student's Signature &amp; Date</div>
+          <div className="rubric-signoff-line">Roll No: {formData?.roll || "_______________"}</div>
+        </div>
+      </div>
+      <PageNumber formData={formData} offset={pageOffset} />
+    </div>
+  );
+}
+
+function RubricPage({ paperStyle, showRulers, showGrid, showGuides, selectedPage, cardRef, rubricRows = [], formData, pageOffset = 0 }) {
+  const totalWeight = rubricRows.reduce((sum, r) => sum + (parseFloat(r.weight) || 0), 0);
+  return (
+    <div className="paper" style={paperStyle} ref={cardRef}>
+      <div className="paper-texture" />
+      <div className="paper-edge-left" />
+      <div className="paper-edge-bottom" />
+      {showGrid && <div className="paper-grid-overlay no-print" data-html2canvas-ignore="true" />}
+      {showGuides && <div className="paper-guides-overlay no-print" data-html2canvas-ignore="true" />}
+      {showRulers && selectedPage && (
+        <>
+          <div className="paper-ruler-x no-print" data-html2canvas-ignore="true" style={{ height: "16px", paddingLeft: "16px" }}>
+            {Array.from({ length: Math.ceil(selectedPage.widthMm / 10) + 1 }).map((_, i) => {
+              const pos = (i * 10 / selectedPage.widthMm) * 100;
+              return (
+                <div key={i} style={{ position: "absolute", left: `calc(${pos}% + 16px)`, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center", width: "20px", transform: "translateX(-50%)" }}>
+                  <span style={{ fontSize: "6px", lineHeight: "1" }}>{i * 10}</span>
+                  <div style={{ width: "1px", height: "4px", background: "#64748b", marginTop: "1px" }} />
+                </div>
+              );
+            })}
+          </div>
+          <div className="paper-ruler-y no-print" data-html2canvas-ignore="true" style={{ width: "16px", paddingTop: "16px" }}>
+            {Array.from({ length: Math.ceil(selectedPage.heightMm / 10) + 1 }).map((_, i) => {
+              const pos = (i * 10 / selectedPage.heightMm) * 100;
+              return (
+                <div key={i} style={{ position: "absolute", top: `calc(${pos}% + 16px)`, right: 0, display: "flex", alignItems: "center", height: "20px", transform: "translateY(-50%)" }}>
+                  <span style={{ fontSize: "6px", marginRight: "2px" }}>{i * 10}</span>
+                  <div style={{ height: "1px", width: "4px", background: "#64748b" }} />
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      <div className="academic-page" id="page-grading-rubric">
+        <h2 className="page-title">TEACHER'S GRADING RUBRIC & FEEDBACK</h2>
+        
+        <table className="rubric-table">
+          <thead>
+            <tr>
+              <th style={{ width: "40%" }}>Assessment Criteria</th>
+              <th style={{ width: "15%" }}>Weight</th>
+              <th style={{ width: "25%" }}>Performance Level</th>
+              <th style={{ width: "20%" }}>Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rubricRows.map((row) => (
+              <tr key={row.id}>
+                <td>
+                  <strong>{row.criteria || "—"}</strong>
+                  {row.description && <><br /><span style={{ fontSize: "0.85em", color: "#666" }}>{row.description}</span></>}
+                </td>
+                <td>{row.weight ? `${row.weight}%` : "—"}</td>
+                <td>Excellent / Good / Fair / Poor</td>
+                <td></td>
+              </tr>
+            ))}
+            <tr style={{ fontWeight: "bold", background: "var(--accent-color-glow)" }}>
+              <td>TOTAL SCORE</td>
+              <td>{totalWeight}%</td>
+              <td>Overall Grade:</td>
+              <td>/ 100</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="rubric-feedback-box">
+          <strong style={{ display: "block", marginBottom: "8px", color: "var(--accent-color, #1e3a5f)" }}>Evaluator's Feedback & Suggestions:</strong>
+          <div style={{ borderBottom: "1px dotted #ccc", height: "24px" }}></div>
+          <div style={{ borderBottom: "1px dotted #ccc", height: "24px", marginTop: "8px" }}></div>
+          <div style={{ borderBottom: "1px dotted #ccc", height: "24px", marginTop: "8px" }}></div>
+        </div>
+
+        <div className="rubric-signoff">
+          <div className="rubric-signoff-line">
+            Evaluator's Signature
+          </div>
+          <div className="rubric-signoff-line">
+            Date
+          </div>
+        </div>
+      </div>
+      <PageNumber formData={formData} offset={pageOffset} />
     </div>
   );
 }
@@ -1051,6 +1693,7 @@ function EditorForm({
   deleteProfile,
   handleLogoUpload,
   handleSignatureUpload,
+  handleBannerUpload,
   showRulers,
   setShowRulers,
   showGrid,
@@ -1064,7 +1707,20 @@ function EditorForm({
   transmittalData,
   setTransmittalData,
   tocData,
-  setTocData
+  setTocData,
+  exportProfiles,
+  importProfiles,
+  rubricRows,
+  setRubricRows,
+  abstractData,
+  setAbstractData,
+  referencesData,
+  setReferencesData,
+  labInfoData,
+  setLabInfoData,
+  appendixData,
+  setAppendixData,
+  exportShareUrl
 }) {
   const [commandQuery, setCommandQuery] = useState("");
   const [commandCategory, setCommandCategory] = useState("all");
@@ -1264,6 +1920,27 @@ function EditorForm({
                 ))}
               </div>
             )}
+
+            <div className="profile-import-export" style={{ display: "flex", gap: "8px", marginTop: "12px", borderTop: "1px dashed var(--border-subtle)", paddingTop: "12px" }}>
+              <Button type="button" variant="secondary" onClick={exportProfiles} style={{ fontSize: "0.75rem", flexGrow: 1, height: "auto", padding: "6px 10px" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "4px" }}>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Export Profiles
+              </Button>
+              <label className="toolbar-btn" style={{ fontSize: "0.75rem", flexGrow: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: "6px 10px", margin: 0, border: "1px solid var(--border-subtle)", background: "transparent", borderRadius: "4px", fontWeight: 500, color: "var(--text-primary)" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "4px" }}>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Import Profiles
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={importProfiles}
+                  style={{ display: "none" }}
+                />
+              </label>
+            </div>
           </div>
         )}
       </div>
@@ -1286,18 +1963,154 @@ function EditorForm({
               <select value={formData.layoutTheme} onChange={(e) => updateField("layoutTheme", e.target.value)}>
                 <option value="classic">Classic (Standard Border & watermark)</option>
                 <option value="minimalist">Minimalist (Bold Centered Typography)</option>
+                <option value="modern-minimal">Modern Minimalist (Double Border Accent)</option>
                 <option value="tech-grid">Tech Grid (CS / Double Bordered)</option>
                 <option value="left-accent">Left Accent (Left Colored Bar)</option>
                 <option value="top-banner">Top Banner (Header block)</option>
+                <option value="executive-stripe">Executive Stripe (Gold & Slate)</option>
+                <option value="creative-sidebar">Creative Sidebar (Left Light Panel)</option>
+                <option value="editorial-magazine">Editorial Magazine (Thick Slate Frame)</option>
               </select>
             </label>
+
+            <label style={{ marginTop: "12px", display: "block" }}><span>Custom Accent Color (Highlight borders/banners)</span>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <input
+                  type="color"
+                  value={formData.accentColor || "#1e3a5f"}
+                  onChange={(e) => updateField("accentColor", e.target.value)}
+                  style={{ width: "45px", height: "32px", border: "1px solid var(--border-subtle)", borderRadius: "4px", padding: 0, cursor: "pointer", background: "none" }}
+                />
+                <input
+                  type="text"
+                  value={formData.accentColor || "#1e3a5f"}
+                  onChange={(e) => updateField("accentColor", e.target.value)}
+                  placeholder="#1e3a5f"
+                  style={{ flexGrow: 1, fontSize: "0.85rem", padding: "6px 8px" }}
+                />
+              </div>
+            </label>
+
+            {/* Font Pairing */}
+            <div style={{ marginTop: "12px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+              <label><span>Heading Font</span>
+                <select value={formData.headingFont || "georgia"} onChange={(e) => updateField("headingFont", e.target.value)}>
+                  <option value="georgia">Georgia (Serif)</option>
+                  <option value="times">Times New Roman</option>
+                  <option value="garamond">EB Garamond</option>
+                  <option value="inter">Inter (Sans)</option>
+                  <option value="outfit">Outfit (Sans)</option>
+                  <option value="firacode">Fira Code (Mono)</option>
+                </select>
+              </label>
+              <label><span>Body Font</span>
+                <select value={formData.bodyFont || "georgia"} onChange={(e) => updateField("bodyFont", e.target.value)}>
+                  <option value="georgia">Georgia (Serif)</option>
+                  <option value="times">Times New Roman</option>
+                  <option value="garamond">EB Garamond</option>
+                  <option value="inter">Inter (Sans)</option>
+                  <option value="outfit">Outfit (Sans)</option>
+                  <option value="firacode">Fira Code (Mono)</option>
+                </select>
+              </label>
+            </div>
+
+            {/* Background Pattern */}
+            <label style={{ marginTop: "12px", display: "block" }}><span>Paper Background Pattern</span>
+              <select value={formData.bgPattern || "none"} onChange={(e) => updateField("bgPattern", e.target.value)}>
+                <option value="none">None (Plain White)</option>
+                <option value="dots">Dot Grid</option>
+                <option value="lines">Ruled Lines</option>
+                <option value="crosshatch">Cross-Hatch</option>
+                <option value="grid">Square Grid</option>
+              </select>
+            </label>
+
+            {/* Banner Image */}
+            <div style={{ marginTop: "12px" }}>
+              <span style={{ display: "block", fontSize: "0.85rem", fontWeight: "500", marginBottom: "6px" }}>Custom Banner / Header Image (optional)</span>
+              <label className="check-row" style={{ marginBottom: "6px" }}>
+                <input type="checkbox" checked={!!formData.useBannerImage} onChange={(e) => updateField("useBannerImage", e.target.checked)} />
+                <span>Show banner image at top of cover</span>
+              </label>
+              {formData.useBannerImage && (
+                <label style={{ display: "block" }}>
+                  <input type="file" accept="image/*" onChange={handleBannerUpload} style={{ fontSize: "0.8rem" }} />
+                  {formData.bannerImageUrl && <img src={formData.bannerImageUrl} alt="banner" style={{ marginTop: "6px", maxHeight: "50px", maxWidth: "100%", borderRadius: "4px", border: "1px solid var(--border-subtle)" }} />}
+                </label>
+              )}
+            </div>
+
+            {/* Dark Cover Mode + Watermark */}
+            <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+              <label className="check-row">
+                <input type="checkbox" checked={!!formData.coverDarkMode} onChange={(e) => updateField("coverDarkMode", e.target.checked)} />
+                <span>Dark Mode Cover Page (white text on dark background)</span>
+              </label>
+            </div>
+
+            <div style={{ marginTop: "12px", display: "grid", gridTemplateColumns: "1fr 80px", gap: "8px" }}>
+              <label><span>Watermark / Draft Stamp Text (optional)</span>
+                <input value={formData.watermarkText || ""} onChange={(e) => updateField("watermarkText", e.target.value)} placeholder='e.g. DRAFT or CONFIDENTIAL' />
+              </label>
+              <label><span>Opacity</span>
+                <input type="number" value={formData.watermarkOpacity || "0.07"} onChange={(e) => updateField("watermarkOpacity", e.target.value)} min="0.01" max="0.5" step="0.01" />
+              </label>
+            </div>
+
+            {/* QR Code */}
+            <div style={{ marginTop: "12px" }}>
+              <label className="check-row" style={{ marginBottom: "6px" }}>
+                <input type="checkbox" checked={!!formData.showQrCode} onChange={(e) => updateField("showQrCode", e.target.checked)} />
+                <span>Show QR Code on cover page (bottom corner)</span>
+              </label>
+              {formData.showQrCode && (
+                <label><span>URL for QR Code</span>
+                  <input value={formData.qrCodeUrl || ""} onChange={(e) => updateField("qrCodeUrl", e.target.value)} placeholder="https://github.com/yourrepo" />
+                </label>
+              )}
+            </div>
+
+            {/* Deadline Countdown */}
+            <label style={{ marginTop: "12px", display: "block" }}><span>Submission Deadline (optional countdown)</span>
+              <input type="datetime-local" value={formData.submissionDeadline || ""} onChange={(e) => updateField("submissionDeadline", e.target.value)} />
+            </label>
+
+            {/* Page Numbering */}
+            <div style={{ marginTop: "12px", display: "grid", gridTemplateColumns: "1fr 80px", gap: "8px" }}>
+              <label><span>Page Number Style</span>
+                <select value={formData.pageNumberStyle || "arabic"} onChange={(e) => updateField("pageNumberStyle", e.target.value)}>
+                  <option value="none">None</option>
+                  <option value="arabic">Arabic (1, 2, 3…)</option>
+                  <option value="roman">Roman (i, ii, iii…)</option>
+                </select>
+              </label>
+              <label><span>Start At</span>
+                <input type="number" min="1" value={formData.pageNumberStart || "1"} onChange={(e) => updateField("pageNumberStart", e.target.value)} />
+              </label>
+            </div>
+
+            {/* Language Toggle */}
+            <label style={{ marginTop: "12px", display: "block" }}><span>Cover Page Language</span>
+              <select value={formData.lang || "en"} onChange={(e) => updateField("lang", e.target.value)}>
+                <option value="en">English</option>
+                <option value="bn">বাংলা (Bengali)</option>
+              </select>
+            </label>
+
+            {/* Share Link */}
+            <div style={{ marginTop: "16px" }}>
+              <Button type="button" variant="secondary" style={{ width: "100%", fontSize: "0.8rem" }} onClick={exportShareUrl}>
+                🔗 Copy Share Link (pre-filled config URL)
+              </Button>
+            </div>
 
             <div style={{ marginTop: "12px" }}>
               <span style={{ display: "block", fontSize: "0.85rem", fontWeight: "500", marginBottom: "8px" }}>Alignment Helpers</span>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 <label className="check-row">
                   <input type="checkbox" checked={showRulers} onChange={(e) => setShowRulers(e.target.checked)} />
-                  <span>Show Rulers (top & left mm ticks)</span>
+                  <span>Show Rulers (top &amp; left mm ticks)</span>
                 </label>
                 <label className="check-row">
                   <input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} />
@@ -1363,10 +2176,20 @@ function EditorForm({
                       onChange={handleSignatureUpload}
                       style={{ fontSize: "0.8rem", width: "100%" }}
                     />
+                    <SignatureDrawingPad
+                      onSave={(url) => {
+                        updateField("customSignatureUrl", url);
+                        updateField("useCustomSignature", true);
+                        showAppToast("Signature drawn and applied!");
+                      }}
+                      onClear={() => {
+                        updateField("customSignatureUrl", "");
+                      }}
+                    />
                     {formData.customSignatureUrl && (
                       <div style={{ marginTop: "6px", display: "flex", alignItems: "center", gap: "8px" }}>
                         <img src={formData.customSignatureUrl} alt="Signature Preview" style={{ maxHeight: "30px", maxWidth: "60px", objectFit: "contain", borderRadius: "3px" }} />
-                        <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Signature uploaded successfully</span>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Signature ready</span>
                       </div>
                     )}
                   </div>
@@ -1407,9 +2230,33 @@ function EditorForm({
                     <input type="checkbox" checked={enabledPages.transmittal} onChange={(e) => setEnabledPages(prev => ({ ...prev, transmittal: e.target.checked }))} />
                     <span>Transmittal Letter</span>
                   </label>
-                  <label className="check-row">
+                  <label className="check-row" style={{ marginRight: "12px" }}>
                     <input type="checkbox" checked={enabledPages.toc} onChange={(e) => setEnabledPages(prev => ({ ...prev, toc: e.target.checked }))} />
                     <span>Table of Contents</span>
+                  </label>
+                  <label className="check-row">
+                    <input type="checkbox" checked={enabledPages.rubric} onChange={(e) => setEnabledPages(prev => ({ ...prev, rubric: e.target.checked }))} />
+                    <span>Grading Rubric</span>
+                  </label>
+                  <label className="check-row" style={{ marginRight: "12px" }}>
+                    <input type="checkbox" checked={enabledPages.abstract} onChange={(e) => setEnabledPages(prev => ({ ...prev, abstract: e.target.checked }))} />
+                    <span>Abstract</span>
+                  </label>
+                  <label className="check-row" style={{ marginRight: "12px" }}>
+                    <input type="checkbox" checked={enabledPages.references} onChange={(e) => setEnabledPages(prev => ({ ...prev, references: e.target.checked }))} />
+                    <span>References</span>
+                  </label>
+                  <label className="check-row" style={{ marginRight: "12px" }}>
+                    <input type="checkbox" checked={enabledPages.labInfo} onChange={(e) => setEnabledPages(prev => ({ ...prev, labInfo: e.target.checked }))} />
+                    <span>Lab Info</span>
+                  </label>
+                  <label className="check-row" style={{ marginRight: "12px" }}>
+                    <input type="checkbox" checked={enabledPages.appendix} onChange={(e) => setEnabledPages(prev => ({ ...prev, appendix: e.target.checked }))} />
+                    <span>Appendix Divider</span>
+                  </label>
+                  <label className="check-row">
+                    <input type="checkbox" checked={enabledPages.certificate} onChange={(e) => setEnabledPages(prev => ({ ...prev, certificate: e.target.checked }))} />
+                    <span>Certificate of Originality</span>
                   </label>
                 </div>
               </div>
@@ -1421,7 +2268,7 @@ function EditorForm({
                   <label><span>Page Title</span>
                     <input value={ackData.title} onChange={(e) => setAckData(prev => ({ ...prev, title: e.target.value }))} />
                   </label>
-                  <label><span>Acknowledgement Body</span>
+                  <label><span>Acknowledgement Body <small style={{ color: getCounterTone(countWords(ackData.body), 140) }}>{countWords(ackData.body)}/140 words</small></span>
                     <textarea value={ackData.body} onChange={(e) => setAckData(prev => ({ ...prev, body: e.target.value }))} rows="4" />
                   </label>
                 </div>
@@ -1455,7 +2302,7 @@ function EditorForm({
                       <input value={transmittalData.salutation} onChange={(e) => setTransmittalData(prev => ({ ...prev, salutation: e.target.value }))} />
                     </label>
                   </div>
-                  <label><span>Letter Body</span>
+                  <label><span>Letter Body <small style={{ color: getCounterTone(countWords(transmittalData.body), 160) }}>{countWords(transmittalData.body)}/160 words</small></span>
                     <textarea value={transmittalData.body} onChange={(e) => setTransmittalData(prev => ({ ...prev, body: e.target.value }))} rows="4" />
                   </label>
                   <label><span>Sign-off Text</span>
@@ -1522,6 +2369,152 @@ function EditorForm({
                   </div>
                 </div>
               )}
+
+              {/* Rubric Criteria Editor */}
+              {enabledPages.rubric && (
+                <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <h4 style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--text-primary)", margin: 0 }}>Rubric Criteria Rows</h4>
+                    <span style={{ fontSize: "0.75rem", color: (() => { const t = (rubricRows || []).reduce((s, r) => s + (parseFloat(r.weight) || 0), 0); return t === 100 ? "#22c55e" : "#f97316"; })() }}>
+                      Total: {(rubricRows || []).reduce((s, r) => s + (parseFloat(r.weight) || 0), 0)}% {(rubricRows || []).reduce((s, r) => s + (parseFloat(r.weight) || 0), 0) !== 100 && "⚠ should be 100%"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {(rubricRows || []).map((row, idx) => (
+                      <div key={row.id} style={{ border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "10px", background: "var(--bg-elevated)", position: "relative" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                          <span style={{ fontSize: "0.78rem", fontWeight: "600", color: "var(--text-accent)" }}>Criterion #{idx + 1}</span>
+                          <button
+                            type="button"
+                            onClick={() => setRubricRows(prev => prev.filter((_, i) => i !== idx))}
+                            style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "0.75rem", fontWeight: "600", padding: "2px 6px" }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 70px", gap: "6px" }}>
+                          <input
+                            value={row.criteria || ""}
+                            onChange={(e) => { const u = [...rubricRows]; u[idx] = { ...u[idx], criteria: e.target.value }; setRubricRows(u); }}
+                            placeholder="Criteria Name (e.g. Introduction)"
+                            style={{ fontSize: "0.82rem" }}
+                          />
+                          <input
+                            value={row.weight || ""}
+                            onChange={(e) => { const u = [...rubricRows]; u[idx] = { ...u[idx], weight: e.target.value }; setRubricRows(u); }}
+                            placeholder="Weight %"
+                            type="number"
+                            min="0"
+                            max="100"
+                            style={{ fontSize: "0.82rem" }}
+                          />
+                        </div>
+                        <input
+                          value={row.description || ""}
+                          onChange={(e) => { const u = [...rubricRows]; u[idx] = { ...u[idx], description: e.target.value }; setRubricRows(u); }}
+                          placeholder="Short description (optional)"
+                          style={{ marginTop: "6px", fontSize: "0.82rem", width: "100%", boxSizing: "border-box" }}
+                        />
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setRubricRows(prev => [
+                        ...prev,
+                        { id: Date.now().toString(), criteria: "", description: "", weight: "" }
+                      ])}
+                      style={{ marginTop: "4px", alignSelf: "flex-start", fontSize: "0.75rem" }}
+                    >
+                      + Add Criterion
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Abstract Editor */}
+              {enabledPages.abstract && (
+                <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "12px" }}>
+                  <h4 style={{ fontSize: "0.85rem", fontWeight: "600", marginBottom: "8px", color: "var(--text-primary)" }}>Abstract Details</h4>
+                  <label><span>Page Title</span>
+                    <input value={abstractData.title} onChange={(e) => setAbstractData(prev => ({ ...prev, title: e.target.value }))} />
+                  </label>
+                  <label style={{ marginTop: "8px", display: "block" }}>
+                    <span>Abstract Body <small style={{ color: getCounterTone(countWords(abstractData.body), 220) }}>{countWords(abstractData.body)}/220 words</small></span>
+                    <textarea value={abstractData.body} onChange={(e) => setAbstractData(prev => ({ ...prev, body: e.target.value }))} rows="5" placeholder="Write a concise summary of your experiment, methodology, and key findings..." />
+                  </label>
+                  <label style={{ marginTop: "8px", display: "block" }}><span>Keywords (comma-separated)</span>
+                    <input value={abstractData.keywords} onChange={(e) => setAbstractData(prev => ({ ...prev, keywords: e.target.value }))} placeholder="e.g. water hardness, EBT indicator, titration" />
+                  </label>
+                </div>
+              )}
+
+              {/* References Editor */}
+              {enabledPages.references && (
+                <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "12px" }}>
+                  <h4 style={{ fontSize: "0.85rem", fontWeight: "600", marginBottom: "8px", color: "var(--text-primary)" }}>References / Citations</h4>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {referencesData.map((ref, idx) => (
+                      <div key={ref.id} style={{ display: "flex", gap: "6px", alignItems: "flex-start" }}>
+                        <select value={ref.style || "APA"} onChange={(e) => { const u = [...referencesData]; u[idx] = { ...u[idx], style: e.target.value }; setReferencesData(u); }} style={{ width: "75px", fontSize: "0.8rem" }}>
+                          <option value="APA">APA</option>
+                          <option value="IEEE">IEEE</option>
+                          <option value="MLA">MLA</option>
+                        </select>
+                        <input value={ref.text || ""} onChange={(e) => { const u = [...referencesData]; u[idx] = { ...u[idx], text: e.target.value }; setReferencesData(u); }} placeholder="Author. (Year). Title. Publisher." style={{ flexGrow: 1, fontSize: "0.82rem" }} />
+                        <button type="button" onClick={() => setReferencesData(prev => prev.filter((_, i) => i !== idx))} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", padding: "4px" }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /></svg>
+                        </button>
+                      </div>
+                    ))}
+                    <Button type="button" variant="secondary" size="sm" onClick={() => setReferencesData(prev => [...prev, { id: Date.now().toString(), style: "APA", text: "" }])} style={{ alignSelf: "flex-start", fontSize: "0.75rem" }}>+ Add Reference</Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Lab Info Editor */}
+              {enabledPages.labInfo && (
+                <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "12px" }}>
+                  <h4 style={{ fontSize: "0.85rem", fontWeight: "600", marginBottom: "8px", color: "var(--text-primary)" }}>Lab Information Details</h4>
+                  <label><span>Lab Room / Location</span>
+                    <input value={labInfoData.labRoom || ""} onChange={(e) => setLabInfoData(prev => ({ ...prev, labRoom: e.target.value }))} placeholder="e.g. Room 301, CSE Building" />
+                  </label>
+                  <div style={{ marginTop: "8px" }}>
+                    <span style={{ fontSize: "0.85rem", fontWeight: "500", display: "block", marginBottom: "4px" }}>Lab Partners</span>
+                    {(labInfoData.partners || []).map((p, i) => (
+                      <div key={i} style={{ display: "flex", gap: "6px", marginBottom: "4px" }}>
+                        <input value={p} onChange={(e) => { const u = [...labInfoData.partners]; u[i] = e.target.value; setLabInfoData(prev => ({ ...prev, partners: u })); }} placeholder={`Partner ${i + 1} name`} style={{ flexGrow: 1 }} />
+                        <button type="button" onClick={() => setLabInfoData(prev => ({ ...prev, partners: prev.partners.filter((_, j) => j !== i) }))} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer" }}>✕</button>
+                      </div>
+                    ))}
+                    <Button type="button" variant="secondary" size="sm" onClick={() => setLabInfoData(prev => ({ ...prev, partners: [...prev.partners, ""] }))} style={{ fontSize: "0.75rem", marginTop: "2px" }}>+ Add Partner</Button>
+                  </div>
+                  <div style={{ marginTop: "8px" }}>
+                    <span style={{ fontSize: "0.85rem", fontWeight: "500", display: "block", marginBottom: "4px" }}>Equipment Used</span>
+                    {(labInfoData.equipment || []).map((eq, i) => (
+                      <div key={i} style={{ display: "flex", gap: "6px", marginBottom: "4px" }}>
+                        <input value={eq} onChange={(e) => { const u = [...labInfoData.equipment]; u[i] = e.target.value; setLabInfoData(prev => ({ ...prev, equipment: u })); }} placeholder={`Equipment ${i + 1}`} style={{ flexGrow: 1 }} />
+                        <button type="button" onClick={() => setLabInfoData(prev => ({ ...prev, equipment: prev.equipment.filter((_, j) => j !== i) }))} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer" }}>✕</button>
+                      </div>
+                    ))}
+                    <Button type="button" variant="secondary" size="sm" onClick={() => setLabInfoData(prev => ({ ...prev, equipment: [...prev.equipment, ""] }))} style={{ fontSize: "0.75rem", marginTop: "2px" }}>+ Add Equipment</Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Appendix Editor */}
+              {enabledPages.appendix && (
+                <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "12px" }}>
+                  <h4 style={{ fontSize: "0.85rem", fontWeight: "600", marginBottom: "8px", color: "var(--text-primary)" }}>Appendix Divider</h4>
+                  <label><span>Section Label</span>
+                    <input value={appendixData.label || ""} onChange={(e) => setAppendixData(prev => ({ ...prev, label: e.target.value }))} placeholder="APPENDIX A" />
+                  </label>
+                  <label style={{ marginTop: "6px", display: "block" }}><span>Subtitle (optional)</span>
+                    <input value={appendixData.subtitle || ""} onChange={(e) => setAppendixData(prev => ({ ...prev, subtitle: e.target.value }))} placeholder="e.g. Raw Data Tables" />
+                  </label>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1572,6 +2565,7 @@ function EditorForm({
       </div>
 
       {/* Dynamic field groups */}
+      {/* Dynamic field groups */}
       {fieldGroups.map((group) => (
         <div key={group.id} className={`accordion-item ${activeSection === group.id ? "active" : ""}`}>
           <button type="button" className="accordion-header" onClick={() => toggleSection(group.id)}>
@@ -1580,23 +2574,166 @@ function EditorForm({
           </button>
           {activeSection === group.id && (
             <div className="accordion-content">
-              {group.fields.map(([key, label]) => (
-                <label key={key}>
-                  <span>
-                    {getFieldLabel(formData, key, label)}
-                    {isOptionalField(formData, key) && <Badge>Optional</Badge>}
-                    {isRequiredField(formData, key) && <Badge variant="success">Required</Badge>}
-                  </span>
-                  {key === "reportTitle"
-                    ? <textarea value={formData[key]} onChange={(e) => updateField(key, e.target.value)} rows="3" />
-                    : <input
-                        value={formData[key]}
-                        onChange={(e) => updateField(key, e.target.value)}
-                        required={isRequiredField(formData, key)}
-                        aria-required={isRequiredField(formData, key)}
-                      />}
+              {group.id === "student" && (
+                <label className="check-row" style={{ marginBottom: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.isGroupMode || false}
+                    onChange={(e) => updateField("isGroupMode", e.target.checked)}
+                  />
+                  <span style={{ fontWeight: "600" }}>Group Submission Mode (Multiple Students)</span>
                 </label>
-              ))}
+              )}
+
+              {group.id === "student" && formData.isGroupMode ? (
+                <div className="group-students-editor" style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "10px" }}>
+                  {(formData.groupStudents || []).map((student, index) => (
+                    <div key={index} className="group-student-form-card" style={{ border: "1px solid var(--border-subtle)", padding: "12px", borderRadius: "6px", background: "var(--bg-elevated)", position: "relative" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                        <strong style={{ fontSize: "0.85rem", color: "var(--text-accent)" }}>Student #{index + 1}</strong>
+                        {(formData.groupStudents || []).length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = formData.groupStudents.filter((_, i) => i !== index);
+                              updateField("groupStudents", updated);
+                            }}
+                            style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "0.75rem", fontWeight: "600" }}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                        <label style={{ gridColumn: "span 2" }}><span>Name</span>
+                          <input
+                            value={student.name || ""}
+                            onChange={(e) => {
+                              const updated = [...formData.groupStudents];
+                              updated[index] = { ...updated[index], name: e.target.value };
+                              updateField("groupStudents", updated);
+                            }}
+                            placeholder="Full Name"
+                          />
+                        </label>
+                        <label><span>Roll No.</span>
+                          <input
+                            value={student.roll || ""}
+                            onChange={(e) => {
+                              const updated = [...formData.groupStudents];
+                              updated[index] = { ...updated[index], roll: e.target.value };
+                              updateField("groupStudents", updated);
+                            }}
+                            placeholder="Roll No."
+                          />
+                        </label>
+                        <label><span>Reg. No. (Optional)</span>
+                          <input
+                            value={student.registration || ""}
+                            onChange={(e) => {
+                              const updated = [...formData.groupStudents];
+                              updated[index] = { ...updated[index], registration: e.target.value };
+                              updateField("groupStudents", updated);
+                            }}
+                            placeholder="Reg. No."
+                          />
+                        </label>
+                        <label><span>Status</span>
+                          <input
+                            value={student.status || ""}
+                            onChange={(e) => {
+                              const updated = [...formData.groupStudents];
+                              updated[index] = { ...updated[index], status: e.target.value };
+                              updateField("groupStudents", updated);
+                            }}
+                            placeholder="Status"
+                          />
+                        </label>
+                        <label><span>Year</span>
+                          <input
+                            value={student.year || ""}
+                            onChange={(e) => {
+                              const updated = [...formData.groupStudents];
+                              updated[index] = { ...updated[index], year: e.target.value };
+                              updateField("groupStudents", updated);
+                            }}
+                            placeholder="Year"
+                          />
+                        </label>
+                        <label><span>Semester</span>
+                          <input
+                            value={student.semester || ""}
+                            onChange={(e) => {
+                              const updated = [...formData.groupStudents];
+                              updated[index] = { ...updated[index], semester: e.target.value };
+                              updateField("groupStudents", updated);
+                            }}
+                            placeholder="Semester"
+                          />
+                        </label>
+                        <label><span>Group (Optional)</span>
+                          <input
+                            value={student.group || ""}
+                            onChange={(e) => {
+                              const updated = [...formData.groupStudents];
+                              updated[index] = { ...updated[index], group: e.target.value };
+                              updateField("groupStudents", updated);
+                            }}
+                            placeholder="Group"
+                          />
+                        </label>
+                        <label style={{ gridColumn: "span 2" }}><span>Session (Optional)</span>
+                          <input
+                            value={student.session || ""}
+                            onChange={(e) => {
+                              const updated = [...formData.groupStudents];
+                              updated[index] = { ...updated[index], session: e.target.value };
+                              updateField("groupStudents", updated);
+                            }}
+                            placeholder="Session"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      const newStudent = { name: "", roll: "", registration: "", status: "Undergraduate Student", year: "1st", semester: "1st", group: "", session: "" };
+                      updateField("groupStudents", [...(formData.groupStudents || []), newStudent]);
+                    }}
+                    style={{ alignSelf: "flex-start", fontSize: "0.75rem", padding: "6px 12px" }}
+                  >
+                    + Add Student
+                  </Button>
+                </div>
+              ) : (
+                group.fields.map(([key, label]) => (
+                  <label key={key}>
+                    <span>
+                      {getFieldLabel(formData, key, label)}
+                      {isOptionalField(formData, key) && <Badge>Optional</Badge>}
+                      {isRequiredField(formData, key) && <Badge variant="success">Required</Badge>}
+                    {key === "reportTitle" && (
+                      <small style={{ color: getCounterTone(countWords(formData.reportTitle), 24) }}>
+                        {countWords(formData.reportTitle)}/24 words
+                      </small>
+                    )}
+                    </span>
+                    {key === "reportTitle"
+                      ? <textarea className={isMissingRequiredField(formData, key) ? "field-missing" : undefined} value={formData[key]} onChange={(e) => updateField(key, e.target.value)} rows="3" />
+                      : <input
+                          className={isMissingRequiredField(formData, key) ? "field-missing" : undefined}
+                          value={formData[key]}
+                          onChange={(e) => updateField(key, e.target.value)}
+                          required={isRequiredField(formData, key)}
+                          aria-required={isRequiredField(formData, key)}
+                        />}
+                  </label>
+                ))
+              )}
             </div>
           )}
         </div>
@@ -1757,6 +2894,12 @@ function App() {
   const exportAckRef = useRef(null);
   const exportTransmittalRef = useRef(null);
   const exportTocRef = useRef(null);
+  const exportRubricRef = useRef(null);
+  const exportAbstractRef = useRef(null);
+  const exportReferencesRef = useRef(null);
+  const exportLabInfoRef = useRef(null);
+  const exportAppendixRef = useRef(null);
+  const exportCertificateRef = useRef(null);
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
   const [is3D, setIs3D] = useState(false);
@@ -1800,14 +2943,33 @@ function App() {
   const [showRulers, setShowRulers] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
+  const undoSnapshotRef = useRef(null);
 
   // 4. Multi-page document packager state
   const [enabledPages, setEnabledPages] = useState({
     cover: true,
     acknowledgement: false,
     transmittal: false,
-    toc: false
+    toc: false,
+    rubric: false,
+    abstract: false,
+    references: false,
+    labInfo: false,
+    appendix: false,
+    certificate: false
   });
+
+  const pageOffsets = useMemo(() => {
+    const offsets = {};
+    let index = 0;
+    pageRenderOrder.forEach((pageKey) => {
+      if (enabledPages[pageKey]) {
+        offsets[pageKey] = index;
+        index += 1;
+      }
+    });
+    return offsets;
+  }, [enabledPages]);
 
   const [ackData, setAckData] = useState({
     title: "ACKNOWLEDGEMENT",
@@ -1831,6 +2993,169 @@ function App() {
     { id: "3", title: "Results and Discussions", pageNo: "4" },
     { id: "4", title: "Conclusion", pageNo: "6" }
   ]);
+
+  const [rubricRows, setRubricRows] = useState([
+    { id: "r1", criteria: "Introduction & Objectives", description: "Clarity of purpose, background information.", weight: "10" },
+    { id: "r2", criteria: "Methodology & Procedure", description: "Completeness of steps, apparatus layout.", weight: "20" },
+    { id: "r3", criteria: "Data Representation & Results", description: "Tables, figures, curves properly labeled.", weight: "30" },
+    { id: "r4", criteria: "Analysis & Discussions", description: "Critical evaluation, error discussion.", weight: "30" },
+    { id: "r5", criteria: "Conclusion & Formatting", description: "Summary, references, presentation neatness.", weight: "10" }
+  ]);
+
+  // ── New page data ──────────────────────────────────────────────────────────
+  const [abstractData, setAbstractData] = useState({
+    title: "ABSTRACT",
+    body: "",
+    keywords: ""
+  });
+
+  const [referencesData, setReferencesData] = useState([
+    { id: "ref1", style: "APA", text: "" }
+  ]);
+
+  const [labInfoData, setLabInfoData] = useState({
+    labRoom: "",
+    partners: [""],
+    equipment: [""]
+  });
+
+  const [appendixData, setAppendixData] = useState({
+    label: "APPENDIX A",
+    subtitle: ""
+  });
+
+  // ── Smart features state ───────────────────────────────────────────────────
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem("sub_lab_onboarding_done"));
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [deadlineCountdown, setDeadlineCountdown] = useState("");
+
+  // ── Auto-save to localStorage (30s debounce) ───────────────────────────────
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      localStorage.setItem("sub_lab_autosave", JSON.stringify(formData));
+    }, 30000);
+    return () => clearTimeout(timer);
+  }, [formData]);
+
+  // Auto-restore prompt on first load
+  useEffect(() => {
+    const saved = localStorage.getItem("sub_lab_autosave");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.reportTitle && parsed.reportTitle !== defaultData.reportTitle) {
+          Swal.fire({
+            title: "Restore Last Session?",
+            text: "We found unsaved work from your last visit. Would you like to restore it?",
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonText: "Yes, restore it",
+            cancelButtonText: "Start fresh",
+            background: "#0f172a",
+            color: "#e8f0ff",
+            confirmButtonColor: "#2563eb"
+          }).then((result) => {
+            if (result.isConfirmed) setFormData((prev) => ({ ...prev, ...parsed }));
+            else localStorage.removeItem("sub_lab_autosave");
+          });
+        }
+      } catch {}
+    }
+  }, []);
+
+  // ── Deadline countdown ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!formData.submissionDeadline) { setDeadlineCountdown(""); return; }
+    const update = () => {
+      const diff = new Date(formData.submissionDeadline) - new Date();
+      if (diff <= 0) { setDeadlineCountdown("⏰ Deadline passed!"); return; }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      setDeadlineCountdown(`⏳ ${d}d ${h}h ${m}m left`);
+    };
+    update();
+    const id = setInterval(update, 60000);
+    return () => clearInterval(id);
+  }, [formData.submissionDeadline]);
+
+  // ── URL State share/load ───────────────────────────────────────────────────
+  const exportShareUrl = useCallback(() => {
+    const shareFields = { reportTitle: formData.reportTitle, university: formData.university, department: formData.department, courseCode: formData.courseCode, courseTitle: formData.courseTitle, teacherName: formData.teacherName, teacherTitle: formData.teacherTitle, submittedByName: formData.submittedByName, roll: formData.roll, year: formData.year, semester: formData.semester, layoutTheme: formData.layoutTheme, accentColor: formData.accentColor, fontFamily: formData.fontFamily };
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(shareFields))));
+    const url = `${window.location.origin}${window.location.pathname}?state=${encoded}`;
+    navigator.clipboard.writeText(url).then(() => showAppToast("Share link copied to clipboard!")).catch(() => showAppToast("Copy failed — check browser permissions", "error"));
+  }, [formData]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const state = params.get("state");
+    if (state) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(state))));
+        Swal.fire({
+          title: "Load Shared Config?",
+          text: "A pre-filled configuration was shared with you. Load it?",
+          icon: "info",
+          showCancelButton: true,
+          confirmButtonText: "Load it",
+          background: "#0f172a",
+          color: "#e8f0ff",
+          confirmButtonColor: "#2563eb"
+        }).then((r) => { if (r.isConfirmed) setFormData((prev) => ({ ...prev, ...decoded })); });
+      } catch {}
+    }
+  }, []);
+
+  // ── Keyboard Shortcuts ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e) => {
+      const key = e.key.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && key === "s") { e.preventDefault(); saveProfile(newProfileName || "Quick Save"); }
+      if ((e.ctrlKey || e.metaKey) && key === "p") { e.preventDefault(); exportCover("pdf"); }
+      if ((e.ctrlKey || e.metaKey) && key === "z" && undoSnapshotRef.current) {
+        e.preventDefault();
+        setFormData(undoSnapshotRef.current);
+        undoSnapshotRef.current = null;
+        showAppToast("Last edit undone");
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && key === "r") { e.preventDefault(); resetForm(); }
+      if (e.key === "?" && !e.ctrlKey && !e.metaKey && document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
+        setShowShortcutsModal(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [formData, newProfileName]);
+
+  // ── Onboarding tour completion ─────────────────────────────────────────────
+  const completeOnboarding = useCallback(() => {
+    localStorage.setItem("sub_lab_onboarding_done", "1");
+    setShowOnboarding(false);
+  }, []);
+
+  // ── Field validation before export ────────────────────────────────────────
+  const validateBeforeExport = useCallback(() => {
+    const missing = [];
+    if (!formData.reportTitle?.trim()) missing.push("Report Title");
+    if (!formData.courseCode?.trim()) missing.push("Course Code");
+    if (!formData.courseTitle?.trim()) missing.push("Course Title");
+    if (!formData.experimentNoOptional && !formData.experimentNo?.trim()) missing.push(getExperimentNoLabel(formData));
+    if (!formData.teacherName?.trim()) missing.push("Teacher Name");
+    if (!formData.submittedByName?.trim() && !formData.isGroupMode) missing.push("Student Name");
+    return missing;
+  }, [formData]);
+
+  // ── Banner upload handler ──────────────────────────────────────────────────
+  const handleBannerUpload = useCallback((e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => updateField("bannerImageUrl", ev.target.result);
+    reader.readAsDataURL(file);
+  }, []);
+
 
   const saveProfile = (name) => {
     if (!name.trim()) {
@@ -1881,6 +3206,83 @@ function App() {
     setProfiles(updated);
     localStorage.setItem("sub_lab_student_profiles", JSON.stringify(updated));
     showAppToast(`Deleted profile "${name}"`);
+  };
+
+  const exportProfiles = () => {
+    try {
+      const dataStr = JSON.stringify(profiles, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      const exportFileDefaultName = 'sub_lab_student_profiles.json';
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+      showAppToast("Profiles exported successfully");
+    } catch (e) {
+      Swal.fire({
+        title: "Export Failed",
+        text: "Could not export profiles.",
+        icon: "error",
+        background: appTheme === "light" ? "#ffffff" : "#0f172a",
+        color: appTheme === "light" ? "#0f172a" : "#e8f0ff"
+      });
+    }
+  };
+
+  const importProfiles = (e) => {
+    const fileReader = new FileReader();
+    const file = e.target.files[0];
+    if (!file) return;
+    fileReader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target.result);
+        if (!Array.isArray(parsed)) {
+          throw new Error("Invalid profiles format. Must be a JSON array.");
+        }
+        const validated = parsed.filter(item => item && typeof item === 'object' && item.name && item.fields);
+        if (validated.length === 0) {
+          throw new Error("No valid profiles found in the file.");
+        }
+        const existingIds = new Set(profiles.map(p => p.id));
+        const newProfiles = validated.map(item => {
+          if (existingIds.has(item.id) || !item.id) {
+            item.id = (Date.now() + Math.floor(Math.random() * 1000)).toString();
+          }
+          return item;
+        });
+        const merged = [...profiles, ...newProfiles];
+        setProfiles(merged);
+        localStorage.setItem("sub_lab_student_profiles", JSON.stringify(merged));
+        showAppToast(`Successfully imported ${newProfiles.length} profiles`);
+      } catch (err) {
+        Swal.fire({
+          title: "Import Failed",
+          text: err.message || "Invalid file content.",
+          icon: "error",
+          background: appTheme === "light" ? "#ffffff" : "#0f172a",
+          color: appTheme === "light" ? "#0f172a" : "#e8f0ff"
+        });
+      }
+    };
+    fileReader.readAsText(file);
+    e.target.value = null;
+  };
+
+  const handleTocClick = (item) => {
+    const titleSlug = item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    let targetId = `page-${titleSlug}`;
+    if (titleSlug.includes("cover")) targetId = "page-cover";
+    if (titleSlug.includes("acknowledgement")) targetId = "page-acknowledgement";
+    if (titleSlug.includes("transmittal") || titleSlug.includes("letter")) targetId = "page-transmittal";
+    if (titleSlug.includes("toc") || titleSlug.includes("contents")) targetId = "page-toc";
+    if (titleSlug.includes("rubric") || titleSlug.includes("grading")) targetId = "page-grading-rubric";
+    const el = document.getElementById(targetId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      showAppToast(`Jumping to ${item.title}...`);
+    } else {
+      showAppToast(`Section "${item.title}" is in the main report (Page ${item.pageNo})`, "info");
+    }
   };
 
   const handleLogoUpload = (e) => {
@@ -2012,19 +3414,25 @@ function App() {
     "--content-scale": getContentScale(selectedPage),
     "--paper-width-px":  `${794 * (selectedPage.widthMm  / 210)}px`,
     "--paper-height-px": `${794 * (selectedPage.heightMm / 210)}px`,
+    "--document-font": FONT_MAPPING[formData.fontFamily] || FONT_MAPPING.georgia,
+    "--heading-font": FONT_MAPPING[formData.headingFont] || FONT_MAPPING.georgia,
+    "--body-font": FONT_MAPPING[formData.bodyFont] || FONT_MAPPING.georgia,
+    "--accent-color": formData.accentColor || "#1e3a5f",
+    "--accent-color-dim": hexToRgba(formData.accentColor || "#1e3a5f", 0.45),
+    "--accent-color-glow": hexToRgba(formData.accentColor || "#1e3a5f", 0.15),
     width:  "var(--paper-width-px)",
     height: "var(--paper-height-px)"
-  }), [selectedPage]);
+  }), [selectedPage, formData.fontFamily, formData.headingFont, formData.bodyFont, formData.accentColor]);
 
   const studentRows = useMemo(() => [
-    ["Name",     formData.submittedByName],
-    ["Status",   formData.status],
-    ["Year",     formData.year],
-    ["Semester", formData.semester],
-    ["Group",    formData.group],
-    ["Session",  formData.session],
-    ["Roll No.", formData.roll],
-    ["Reg. No.", formData.registration]
+    [t(formData, "name"),     formData.submittedByName],
+    [t(formData, "status"),   formData.status],
+    [t(formData, "year"),     formData.year],
+    [t(formData, "semester"), formData.semester],
+    [t(formData, "group"),    formData.group],
+    [t(formData, "session"),  formData.session],
+    [t(formData, "rollNo"),   formData.roll],
+    [t(formData, "regNo"),    formData.registration]
   ].filter(([,v]) => v.trim()), [formData]);
 
   const overleafCode = useMemo(
@@ -2034,6 +3442,7 @@ function App() {
 
   function updateField(k, v) {
     setFormData((c) => {
+      undoSnapshotRef.current = c;
       const next = { ...c, [k]: v };
       if (k === "department" && c.departmentPreset === "custom") {
         next.teacherDepartment = v;
@@ -2044,6 +3453,7 @@ function App() {
   function updateDepartmentPreset(v) {
     const d = departments.find((x) => x.id === v);
     setFormData((c) => {
+      undoSnapshotRef.current = c;
       if (!d || d.id === "custom") {
         return {
           ...c,
@@ -2058,7 +3468,10 @@ function App() {
       return { ...c, departmentPreset: v, department: dn, teacherDepartment: dn, departmentLogoUrl: d.logoUrl };
     });
   }
-  function resetForm() { setFormData(defaultData); }
+  function resetForm() {
+    undoSnapshotRef.current = formData;
+    setFormData(defaultData);
+  }
   function handlePrint() { setTimeout(() => window.print(), 60); }
   async function copyText(text, message = "Copied") {
     try {
@@ -2122,9 +3535,82 @@ function App() {
     }
   }
 
+  async function buildPdfDocument() {
+    const { jsPDF } = await import("jspdf");
+    const { default: html2canvas } = await import("html2canvas");
+    const pagesToRender = [];
+
+    if (enabledPages.cover) pagesToRender.push({ name: "Cover", ref: exportCardRef });
+    if (enabledPages.abstract) pagesToRender.push({ name: "Abstract", ref: exportAbstractRef });
+    if (enabledPages.acknowledgement) pagesToRender.push({ name: "Acknowledgement", ref: exportAckRef });
+    if (enabledPages.transmittal) pagesToRender.push({ name: "Letter of Transmittal", ref: exportTransmittalRef });
+    if (enabledPages.toc) pagesToRender.push({ name: "Table of Contents", ref: exportTocRef });
+    if (enabledPages.labInfo) pagesToRender.push({ name: "Lab Information", ref: exportLabInfoRef });
+    if (enabledPages.references) pagesToRender.push({ name: "References", ref: exportReferencesRef });
+    if (enabledPages.appendix) pagesToRender.push({ name: "Appendix", ref: exportAppendixRef });
+    if (enabledPages.certificate) pagesToRender.push({ name: "Certificate", ref: exportCertificateRef });
+    if (enabledPages.rubric) pagesToRender.push({ name: "Grading Rubric", ref: exportRubricRef });
+
+    const pdf = new jsPDF({
+      orientation: selectedPage.widthMm > selectedPage.heightMm ? "landscape" : "portrait",
+      unit: "mm",
+      format: [selectedPage.widthMm, selectedPage.heightMm]
+    });
+
+    for (let i = 0; i < pagesToRender.length; i++) {
+      const node = pagesToRender[i].ref.current;
+      if (!node) continue;
+      await document.fonts?.ready;
+
+      let pageImg = "";
+      try {
+        const canvas = await html2canvas(node, {
+          backgroundColor: "#ffffff",
+          scale: 2.4,
+          useCORS: true,
+          allowTaint: false,
+          imageTimeout: 8000,
+          logging: false,
+          ignoreElements: (domNode) => domNode.classList?.contains("paper-glare")
+        });
+        pageImg = canvas.toDataURL("image/png");
+      } catch {
+        const { toPng } = await import("html-to-image");
+        pageImg = await toPng(node, {
+          backgroundColor: "#ffffff",
+          cacheBust: true,
+          pixelRatio: 2.4,
+          imagePlaceholder: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+          filter: (domNode) => !domNode.classList?.contains("paper-glare")
+        });
+      }
+
+      if (i > 0) {
+        pdf.addPage([selectedPage.widthMm, selectedPage.heightMm], selectedPage.widthMm > selectedPage.heightMm ? "landscape" : "portrait");
+      }
+      pdf.addImage(pageImg, "PNG", 0, 0, selectedPage.widthMm, selectedPage.heightMm);
+    }
+
+    return pdf;
+  }
+
   async function exportCover(format) {
     const baseName = getExportBaseName(formData);
     const label = exportFormats.find((item) => item.id === format)?.label ?? format.toUpperCase();
+    const missingFields = validateBeforeExport();
+
+    if (missingFields.length) {
+      Swal.fire({
+        title: "Missing required fields",
+        html: `<ul style="text-align:left;margin:0;padding-left:20px;">${missingFields.map((field) => `<li>${field}</li>`).join("")}</ul>`,
+        icon: "warning",
+        confirmButtonText: "Fix fields",
+        background: "#0f172a",
+        color: "#e8f0ff",
+        confirmButtonColor: "#2563eb"
+      });
+      return;
+    }
 
     Swal.fire({
       title: `Preparing ${label}`,
@@ -2138,55 +3624,7 @@ function App() {
 
     try {
       if (format === "pdf") {
-        const { jsPDF } = await import("jspdf");
-        const { default: html2canvas } = await import("html2canvas");
-
-        const pagesToRender = [];
-        if (enabledPages.cover) pagesToRender.push({ name: "Cover", ref: exportCardRef });
-        if (enabledPages.acknowledgement) pagesToRender.push({ name: "Acknowledgement", ref: exportAckRef });
-        if (enabledPages.transmittal) pagesToRender.push({ name: "Letter of Transmittal", ref: exportTransmittalRef });
-        if (enabledPages.toc) pagesToRender.push({ name: "Table of Contents", ref: exportTocRef });
-
-        const pdf = new jsPDF({
-          orientation: selectedPage.widthMm > selectedPage.heightMm ? "landscape" : "portrait",
-          unit: "mm",
-          format: [selectedPage.widthMm, selectedPage.heightMm]
-        });
-
-        for (let i = 0; i < pagesToRender.length; i++) {
-          const page = pagesToRender[i];
-          const node = page.ref.current;
-          if (!node) continue;
-          await document.fonts?.ready;
-
-          let pageImg = "";
-          try {
-            const canvas = await html2canvas(node, {
-              backgroundColor: "#ffffff",
-              scale: 2.4,
-              useCORS: true,
-              allowTaint: false,
-              imageTimeout: 8000,
-              logging: false,
-              ignoreElements: (domNode) => domNode.classList?.contains("paper-glare")
-            });
-            pageImg = canvas.toDataURL("image/png");
-          } catch (err) {
-            const { toPng } = await import("html-to-image");
-            pageImg = await toPng(node, {
-              backgroundColor: "#ffffff",
-              cacheBust: true,
-              pixelRatio: 2.4,
-              imagePlaceholder: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
-              filter: (domNode) => !domNode.classList?.contains("paper-glare")
-            });
-          }
-
-          if (i > 0) {
-            pdf.addPage([selectedPage.widthMm, selectedPage.heightMm], selectedPage.widthMm > selectedPage.heightMm ? "landscape" : "portrait");
-          }
-          pdf.addImage(pageImg, "PNG", 0, 0, selectedPage.widthMm, selectedPage.heightMm);
-        }
+        const pdf = await buildPdfDocument();
         pdf.save(`${baseName}.pdf`);
       } else if (format === "png") {
         downloadDataUrl(`${baseName}.png`, await getCoverImageDataUrl("png", 2.6));
@@ -2214,6 +3652,22 @@ function App() {
         slide.background = { color: "FFFFFF" };
         slide.addImage({ data: image, x: 0, y: 0, w: widthIn, h: heightIn });
         await pptx.writeFile({ fileName: `${baseName}.pptx` });
+      } else if (format === "zip") {
+        const [{ default: JSZip }, { Packer }] = await Promise.all([
+          import("jszip"),
+          import("docx")
+        ]);
+        const pdf = await buildPdfDocument();
+
+        const zip = new JSZip();
+        zip.file(`${baseName}.pdf`, pdf.output("blob"));
+        zip.file(`${baseName}.docx`, await Packer.toBlob(await buildDocxCover(formData, studentRows, selectedPage)));
+        zip.file("main.tex", overleafCode);
+
+        const zipBlob = await zip.generateAsync({ type: "blob" }, (metadata) => {
+          if (metadata.percent) Swal.update({ text: `Creating ZIP... ${Math.round(metadata.percent)}%` });
+        });
+        downloadBlob(`${baseName}.zip`, zipBlob);
       }
 
       Swal.close();
@@ -2301,6 +3755,11 @@ function App() {
                   <span>{visitCount.toLocaleString()} visits</span>
                 </div>
               )}
+              {deadlineCountdown && (
+                <div className="deadline-badge no-print">
+                  {deadlineCountdown}
+                </div>
+              )}
             </div>
           </div>
           <h1>Cover Page Generator</h1>
@@ -2353,6 +3812,7 @@ function App() {
             deleteProfile={deleteProfile}
             handleLogoUpload={handleLogoUpload}
             handleSignatureUpload={handleSignatureUpload}
+            handleBannerUpload={handleBannerUpload}
             showRulers={showRulers}
             setShowRulers={setShowRulers}
             showGrid={showGrid}
@@ -2367,6 +3827,19 @@ function App() {
             setTransmittalData={setTransmittalData}
             tocData={tocData}
             setTocData={setTocData}
+            exportProfiles={exportProfiles}
+            importProfiles={importProfiles}
+            rubricRows={rubricRows}
+            setRubricRows={setRubricRows}
+            abstractData={abstractData}
+            setAbstractData={setAbstractData}
+            referencesData={referencesData}
+            setReferencesData={setReferencesData}
+            labInfoData={labInfoData}
+            setLabInfoData={setLabInfoData}
+            appendixData={appendixData}
+            setAppendixData={setAppendixData}
+            exportShareUrl={exportShareUrl}
           />
         </div>
       </section>
@@ -2449,6 +3922,8 @@ function App() {
                 showGrid={showGrid}
                 showGuides={showGuides}
                 selectedPage={selectedPage}
+                formData={formData}
+                pageOffset={pageOffsets.acknowledgement}
               />
             )}
             {enabledPages.transmittal && (
@@ -2460,6 +3935,7 @@ function App() {
                 showGrid={showGrid}
                 showGuides={showGuides}
                 selectedPage={selectedPage}
+                pageOffset={pageOffsets.transmittal}
               />
             )}
             {enabledPages.toc && (
@@ -2470,7 +3946,28 @@ function App() {
                 showGrid={showGrid}
                 showGuides={showGuides}
                 selectedPage={selectedPage}
+                onTocClick={handleTocClick}
+                formData={formData}
+                pageOffset={pageOffsets.toc}
               />
+            )}
+            {enabledPages.abstract && (
+              <AbstractPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} abstractData={abstractData} formData={formData} pageOffset={pageOffsets.abstract} />
+            )}
+            {enabledPages.rubric && (
+              <RubricPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} rubricRows={rubricRows} formData={formData} pageOffset={pageOffsets.rubric} />
+            )}
+            {enabledPages.references && (
+              <ReferencesPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} referencesData={referencesData} formData={formData} pageOffset={pageOffsets.references} />
+            )}
+            {enabledPages.labInfo && (
+              <LabInfoPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} labInfoData={labInfoData} formData={formData} pageOffset={pageOffsets.labInfo} />
+            )}
+            {enabledPages.appendix && (
+              <AppendixPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} appendixData={appendixData} formData={formData} pageOffset={pageOffsets.appendix} />
+            )}
+            {enabledPages.certificate && (
+              <CertificatePage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} formData={formData} pageOffset={pageOffsets.certificate} />
             )}
           </div>
         </div>
@@ -2505,6 +4002,8 @@ function App() {
             showGuides={false}
             selectedPage={selectedPage}
             cardRef={exportAckRef}
+            formData={formData}
+            pageOffset={pageOffsets.acknowledgement}
           />
         )}
         {enabledPages.transmittal && (
@@ -2517,6 +4016,7 @@ function App() {
             showGuides={false}
             selectedPage={selectedPage}
             cardRef={exportTransmittalRef}
+            pageOffset={pageOffsets.transmittal}
           />
         )}
         {enabledPages.toc && (
@@ -2528,13 +4028,33 @@ function App() {
             showGuides={false}
             selectedPage={selectedPage}
             cardRef={exportTocRef}
+            formData={formData}
+            pageOffset={pageOffsets.toc}
           />
+        )}
+        {enabledPages.abstract && (
+          <AbstractPage paperStyle={paperStyle} showRulers={false} showGrid={false} showGuides={false} selectedPage={selectedPage} cardRef={exportAbstractRef} abstractData={abstractData} formData={formData} pageOffset={pageOffsets.abstract} />
+        )}
+        {enabledPages.rubric && (
+          <RubricPage paperStyle={paperStyle} showRulers={false} showGrid={false} showGuides={false} selectedPage={selectedPage} cardRef={exportRubricRef} rubricRows={rubricRows} formData={formData} pageOffset={pageOffsets.rubric} />
+        )}
+        {enabledPages.references && (
+          <ReferencesPage paperStyle={paperStyle} showRulers={false} showGrid={false} showGuides={false} selectedPage={selectedPage} cardRef={exportReferencesRef} referencesData={referencesData} formData={formData} pageOffset={pageOffsets.references} />
+        )}
+        {enabledPages.labInfo && (
+          <LabInfoPage paperStyle={paperStyle} showRulers={false} showGrid={false} showGuides={false} selectedPage={selectedPage} cardRef={exportLabInfoRef} labInfoData={labInfoData} formData={formData} pageOffset={pageOffsets.labInfo} />
+        )}
+        {enabledPages.appendix && (
+          <AppendixPage paperStyle={paperStyle} showRulers={false} showGrid={false} showGuides={false} selectedPage={selectedPage} cardRef={exportAppendixRef} appendixData={appendixData} formData={formData} pageOffset={pageOffsets.appendix} />
+        )}
+        {enabledPages.certificate && (
+          <CertificatePage paperStyle={paperStyle} showRulers={false} showGrid={false} showGuides={false} selectedPage={selectedPage} cardRef={exportCertificateRef} formData={formData} pageOffset={pageOffsets.certificate} />
         )}
       </div>
 
       {/* ════ LIGHTBOX (double-click zoom) ════ */}
       {lightboxOpen && (
-        <Lightbox onClose={() => setLightboxOpen(false)}>
+        <Lightbox onClose={() => setLightboxOpen(false)} onPrint={handlePrint}>
           <div className="lightbox-paper-wrap" style={{ display: "flex", flexDirection: "column", gap: "20px", alignItems: "center" }}>
             {enabledPages.cover && (
               <CoverPage
@@ -2557,6 +4077,8 @@ function App() {
                 showGrid={showGrid}
                 showGuides={showGuides}
                 selectedPage={selectedPage}
+                formData={formData}
+                pageOffset={pageOffsets.acknowledgement}
               />
             )}
             {enabledPages.transmittal && (
@@ -2568,6 +4090,7 @@ function App() {
                 showGrid={showGrid}
                 showGuides={showGuides}
                 selectedPage={selectedPage}
+                pageOffset={pageOffsets.transmittal}
               />
             )}
             {enabledPages.toc && (
@@ -2578,10 +4101,83 @@ function App() {
                 showGrid={showGrid}
                 showGuides={showGuides}
                 selectedPage={selectedPage}
+                onTocClick={handleTocClick}
+                formData={formData}
+                pageOffset={pageOffsets.toc}
               />
+            )}
+            {enabledPages.abstract && (
+              <AbstractPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} abstractData={abstractData} formData={formData} pageOffset={pageOffsets.abstract} />
+            )}
+            {enabledPages.rubric && (
+              <RubricPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} rubricRows={rubricRows} formData={formData} pageOffset={pageOffsets.rubric} />
+            )}
+            {enabledPages.references && (
+              <ReferencesPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} referencesData={referencesData} formData={formData} pageOffset={pageOffsets.references} />
+            )}
+            {enabledPages.labInfo && (
+              <LabInfoPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} labInfoData={labInfoData} formData={formData} pageOffset={pageOffsets.labInfo} />
+            )}
+            {enabledPages.appendix && (
+              <AppendixPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} appendixData={appendixData} formData={formData} pageOffset={pageOffsets.appendix} />
+            )}
+            {enabledPages.certificate && (
+              <CertificatePage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} formData={formData} pageOffset={pageOffsets.certificate} />
             )}
           </div>
         </Lightbox>
+      )}
+
+      {showShortcutsModal && (
+        <div className="utility-modal-overlay no-print" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+          <div className="utility-modal">
+            <h2>Keyboard Shortcuts</h2>
+            <ul>
+              <li><strong>Ctrl/⌘ + S</strong><span>Save current student profile</span></li>
+              <li><strong>Ctrl/⌘ + P</strong><span>Export PDF</span></li>
+              <li><strong>Ctrl/⌘ + Z</strong><span>Undo last field edit</span></li>
+              <li><strong>Ctrl/⌘ + Shift + R</strong><span>Reset the form</span></li>
+              <li><strong>?</strong><span>Open this shortcuts help</span></li>
+            </ul>
+            <Button type="button" onClick={() => setShowShortcutsModal(false)}>Close</Button>
+          </div>
+        </div>
+      )}
+
+      {showOnboarding && (
+        <div className="tour-overlay no-print" role="dialog" aria-modal="true" aria-label="Quick tutorial">
+          <div className="tour-card">
+            {[
+              ["Welcome", "Build print-ready SUB lab cover pages with live preview."],
+              ["Cover Options", "Choose page size, department preset, optional logos, and lab/program number behavior."],
+              ["Profiles", "Save student information so future reports can be filled faster."],
+              ["Themes", "Pick layout themes, patterns, watermark, QR code, language, and page numbering."],
+              ["Academic Packager", "Enable extra pages like Abstract, References, Lab Info, Appendix, and Certificate."],
+              ["Export", "Download PDF, image, DOCX, PPTX, SVG, or a ZIP bundle."],
+              ["Overleaf", "Copy a complete LaTeX report starter and useful commands."],
+              ["Preview", "Use 2D/3D preview, print, or double-click to inspect the page."]
+            ].map(([title, text], index) => (
+              index === onboardingStep && (
+                <div key={title}>
+                  <Badge variant="success">Step {index + 1} of 8</Badge>
+                  <h2>{title}</h2>
+                  <p>{text}</p>
+                </div>
+              )
+            ))}
+            <div className="tour-actions">
+              <Button type="button" variant="secondary" onClick={completeOnboarding}>Skip</Button>
+              {onboardingStep > 0 && (
+                <Button type="button" variant="secondary" onClick={() => setOnboardingStep((step) => step - 1)}>Back</Button>
+              )}
+              {onboardingStep < 7 ? (
+                <Button type="button" onClick={() => setOnboardingStep((step) => step + 1)}>Next</Button>
+              ) : (
+                <Button type="button" onClick={completeOnboarding}>Finish</Button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );
