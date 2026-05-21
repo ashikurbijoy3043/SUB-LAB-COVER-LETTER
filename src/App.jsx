@@ -1,4 +1,6 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
 
 const SUB_LOGO_URL = "https://www.sub.ac.bd/uploads/logo/cdcbff91d69b664eef72.jpg";
 const CSE_IMAGE_URL = "https://www.sub.ac.bd/uploads/department/a2149fac87112b19d2ad.jpg";
@@ -57,6 +59,204 @@ const departments = [
   { id: "custom",              label: "Custom department",                     logoUrl: "" }
 ];
 
+const labReportTemplates = {
+  architecture: {
+    title: "Architecture Studio / Lab Report",
+    focus: "site analysis, drawing plates, model photos, observations",
+    sections: ["Objective", "Site / Case Context", "Tools and Materials", "Methodology", "Drawing / Plate Documentation", "Observations", "Analysis", "Conclusion"],
+    helpers: ["figure", "plate", "table", "references"]
+  },
+  "business-studies": {
+    title: "Business Studies Analysis Report",
+    focus: "case analysis, data tables, charts, findings, recommendation",
+    sections: ["Objective", "Background", "Methodology", "Data Presentation", "Analysis", "Findings", "Recommendation", "Conclusion"],
+    helpers: ["table", "chart", "references"]
+  },
+  cse: {
+    title: "CSE Lab Report",
+    focus: "algorithm, source code, output screenshots, complexity, result",
+    sections: ["Objective", "Theory", "Algorithm", "Source Code", "Input / Output", "Result", "Discussion", "Conclusion"],
+    helpers: ["code", "figure", "table", "equation"]
+  },
+  "english-studies": {
+    title: "English Studies Report",
+    focus: "text analysis, language observation, citations, interpretation",
+    sections: ["Objective", "Text / Topic Background", "Theoretical Framework", "Observation", "Analysis", "Findings", "Conclusion", "References"],
+    helpers: ["quote", "table", "references"]
+  },
+  "environmental-science": {
+    title: "Environmental Science Lab Report",
+    focus: "sample collection, environmental parameters, calculations, result",
+    sections: ["Objective", "Theory", "Sampling Method", "Apparatus", "Procedure", "Data Table", "Calculation", "Result", "Discussion", "Conclusion"],
+    helpers: ["sample-table", "figure", "equation", "references"]
+  },
+  "food-engineering": {
+    title: "Food Engineering and Nutrition Lab Report",
+    focus: "raw materials, process flow, sensory data, nutrition calculation",
+    sections: ["Objective", "Principle", "Raw Materials", "Apparatus", "Process Flow", "Procedure", "Observation Table", "Calculation", "Result", "Conclusion"],
+    helpers: ["process-flow", "table", "figure", "equation"]
+  },
+  journalism: {
+    title: "Journalism / Media Field Report",
+    focus: "field notes, interview sources, media observation, analysis",
+    sections: ["Objective", "Background", "Methodology", "Source / Interview Notes", "Observation", "Media Analysis", "Findings", "Conclusion"],
+    helpers: ["quote", "table", "references"]
+  },
+  law: {
+    title: "Law Case / Lab Report",
+    focus: "facts, legal issues, rule, application, conclusion",
+    sections: ["Objective", "Facts", "Issue", "Relevant Law / Rule", "Analysis", "Decision / Finding", "Conclusion", "References"],
+    helpers: ["quote", "table", "references"]
+  },
+  pharmacy: {
+    title: "Pharmacy Lab Report",
+    focus: "principle, chemicals, apparatus, observation, calculation, precautions",
+    sections: ["Objective", "Principle", "Apparatus", "Chemicals / Reagents", "Procedure", "Observation", "Calculation", "Result", "Precautions", "Conclusion"],
+    helpers: ["chemical-table", "figure", "equation", "references"]
+  },
+  "public-health": {
+    title: "Public Health Lab / Field Report",
+    focus: "sample population, data collection, analysis, recommendation",
+    sections: ["Objective", "Background", "Study Population", "Data Collection Method", "Data Presentation", "Analysis", "Findings", "Recommendation", "Conclusion"],
+    helpers: ["survey-table", "figure", "references"]
+  },
+  custom: {
+    title: "Custom Department Lab Report",
+    focus: "general lab structure with editable sections",
+    sections: ["Objective", "Theory / Background", "Materials / Apparatus", "Procedure", "Observation", "Calculation / Analysis", "Result", "Discussion", "Conclusion"],
+    helpers: ["figure", "table", "equation", "references"]
+  }
+};
+
+const latexCommandCards = [
+  {
+    category: "Starter",
+    title: "Document Setup",
+    hint: "Minimum Overleaf file setup for lab reports.",
+    code: "\\documentclass[12pt,a4paper]{article}\n\\usepackage[margin=1in]{geometry}\n\\usepackage{graphicx}\n\\usepackage{float}\n\\usepackage{amsmath}\n\\usepackage{booktabs}\n\\usepackage{hyperref}\n\n\\begin{document}\n\n\\title{Lab Report Title}\n\\author{Your Name}\n\\date{\\today}\n\\maketitle\n\n\\end{document}"
+  },
+  {
+    category: "Structure",
+    title: "Section / Subsection",
+    hint: "Fast structure for report body writing.",
+    code: "\\section{Objective}\nWrite the objective here.\n\n\\subsection{Specific Objectives}\n\\begin{enumerate}\n    \\item First objective\n    \\item Second objective\n\\end{enumerate}"
+  },
+  {
+    category: "Images",
+    title: "Image / Figure",
+    hint: "Upload the image to Overleaf, then use the same filename.",
+    code: "\\begin{figure}[H]\n    \\centering\n    \\includegraphics[width=0.8\\textwidth]{result.png}\n    \\caption{Experiment result}\n    \\label{fig:result}\n\\end{figure}"
+  },
+  {
+    category: "Images",
+    title: "Two Images Side by Side",
+    hint: "Good for before/after, input/output, or plate comparisons.",
+    code: "\\begin{figure}[H]\n    \\centering\n    \\begin{subfigure}{0.45\\textwidth}\n        \\centering\n        \\includegraphics[width=\\textwidth]{before.png}\n        \\caption{Before}\n    \\end{subfigure}\n    \\hfill\n    \\begin{subfigure}{0.45\\textwidth}\n        \\centering\n        \\includegraphics[width=\\textwidth]{after.png}\n        \\caption{After}\n    \\end{subfigure}\n    \\caption{Comparison of observations}\n    \\label{fig:comparison}\n\\end{figure}"
+  },
+  {
+    category: "Tables",
+    title: "Data Table",
+    hint: "Good for observation, sample, survey, or result tables.",
+    code: "\\begin{table}[H]\n    \\centering\n    \\caption{Observation data}\n    \\label{tab:observation}\n    \\begin{tabular}{lll}\n        \\toprule\n        Parameter & Value & Unit \\\\\n        \\midrule\n        Sample 1 & -- & -- \\\\\n        Sample 2 & -- & -- \\\\\n        \\bottomrule\n    \\end{tabular}\n\\end{table}"
+  },
+  {
+    category: "Tables",
+    title: "Wide Table",
+    hint: "Use when tables are too wide for the page.",
+    code: "\\begin{table}[H]\n    \\centering\n    \\resizebox{\\textwidth}{!}{%\n    \\begin{tabular}{llllll}\n        \\toprule\n        Sample & Trial 1 & Trial 2 & Trial 3 & Average & Unit \\\\\n        \\midrule\n        A & -- & -- & -- & -- & -- \\\\\n        B & -- & -- & -- & -- & -- \\\\\n        \\bottomrule\n    \\end{tabular}}\n    \\caption{Wide observation table}\n\\end{table}"
+  },
+  {
+    category: "Tables",
+    title: "Chemical / Reagent Table",
+    hint: "Useful for Pharmacy, Chemistry, Food, and Environmental labs.",
+    code: "\\begin{table}[H]\n    \\centering\n    \\caption{Chemicals and reagents}\n    \\begin{tabular}{lll}\n        \\toprule\n        Chemical & Concentration & Purpose \\\\\n        \\midrule\n        EDTA & 0.01 M & Titrant \\\\\n        Buffer solution & pH 10 & Maintain pH \\\\\n        Indicator & EBT & Endpoint detection \\\\\n        \\bottomrule\n    \\end{tabular}\n\\end{table}"
+  },
+  {
+    category: "Math",
+    title: "Equation",
+    hint: "Use for formulas and calculations.",
+    code: "\\begin{equation}\n    C_1V_1 = C_2V_2\n    \\label{eq:dilution}\n\\end{equation}"
+  },
+  {
+    category: "Math",
+    title: "Aligned Calculation",
+    hint: "Best for step-by-step calculation in lab reports.",
+    code: "\\begin{align}\n    \\text{Hardness} &= \\frac{V \\times M \\times 1000}{\\text{Sample volume}} \\\\\n                    &= \\frac{25 \\times 0.01 \\times 1000}{50} \\\\\n                    &= 5\\ \\text{mg/L}\n\\end{align}"
+  },
+  {
+    category: "Math",
+    title: "SI Units",
+    hint: "Cleaner scientific units. Add \\usepackage{siunitx}.",
+    code: "\\SI{25}{\\milli\\liter}\n\\quad\n\\SI{0.01}{\\mole\\per\\liter}\n\\quad\n\\SI{5}{\\milli\\gram\\per\\liter}"
+  },
+  {
+    category: "Chemistry",
+    title: "Chemical Equation",
+    hint: "Useful for Pharmacy/Food/Environmental labs. Add \\usepackage[version=4]{mhchem}.",
+    code: "\\begin{equation}\n    \\ce{Ca^{2+} + H2Y^{2-} -> CaY^{2-} + 2H+}\n\\end{equation}"
+  },
+  {
+    category: "Code",
+    title: "CSE Code Block",
+    hint: "Best for algorithms, source code, and output sections.",
+    code: "\\begin{lstlisting}[language=Python, caption={Sample program}]\nprint(\"Hello, lab report\")\n\\end{lstlisting}"
+  },
+  {
+    category: "Code",
+    title: "Output Block",
+    hint: "Use for terminal/program output in CSE reports.",
+    code: "\\begin{verbatim}\nInput:  5 10\nOutput: 15\n\\end{verbatim}"
+  },
+  {
+    category: "Lists",
+    title: "Bullet List",
+    hint: "Useful for apparatus, objectives, findings, precautions.",
+    code: "\\begin{itemize}\n    \\item First point\n    \\item Second point\n    \\item Third point\n\\end{itemize}"
+  },
+  {
+    category: "Lists",
+    title: "Numbered Procedure",
+    hint: "Best for experiment procedure steps.",
+    code: "\\begin{enumerate}\n    \\item Prepare all apparatus and chemicals.\n    \\item Take the required sample volume.\n    \\item Perform the experiment carefully.\n    \\item Record observations and calculate the result.\n\\end{enumerate}"
+  },
+  {
+    category: "Charts",
+    title: "Simple Bar Chart",
+    hint: "Use pgfplots for graphs directly in Overleaf.",
+    code: "\\begin{tikzpicture}\n\\begin{axis}[\n    ybar,\n    xlabel={Sample},\n    ylabel={Value},\n    symbolic x coords={A,B,C},\n    xtick=data\n]\n\\addplot coordinates {(A,10) (B,15) (C,12)};\n\\end{axis}\n\\end{tikzpicture}"
+  },
+  {
+    category: "Flow",
+    title: "Process Flow",
+    hint: "Useful for Food Engineering, CSE algorithms, and procedure flow.",
+    code: "\\begin{center}\n\\begin{tikzpicture}[node distance=1.5cm]\n\\node (start) [draw, rounded corners] {Start};\n\\node (process) [draw, below of=start] {Process sample};\n\\node (result) [draw, rounded corners, below of=process] {Record result};\n\\draw[->] (start) -- (process);\n\\draw[->] (process) -- (result);\n\\end{tikzpicture}\n\\end{center}"
+  },
+  {
+    category: "Text",
+    title: "Quote / Interview",
+    hint: "Useful for English, Law, Journalism, and field reports.",
+    code: "\\begin{quote}\n``Write quoted text or interview response here.''\n\\end{quote}"
+  },
+  {
+    category: "Appendix",
+    title: "Appendix",
+    hint: "Put raw data, extra screenshots, or long code here.",
+    code: "\\appendix\n\\section{Raw Data}\nPaste extra tables, screenshots, code, or survey forms here."
+  },
+  {
+    category: "References",
+    title: "References",
+    hint: "Simple reference list without BibTeX.",
+    code: "\\begin{thebibliography}{9}\n\\bibitem{book1} Author Name, \\textit{Book or Article Title}, Publisher, Year.\n\\end{thebibliography}"
+  },
+  {
+    category: "References",
+    title: "Website Reference",
+    hint: "Quick web citation format.",
+    code: "\\bibitem{website1} Organization Name, ``Page Title,'' Available: \\url{https://example.com}. Accessed: 21 May 2026."
+  }
+];
+
 const fieldGroups = [
   {
     id: "report", title: "Report Details",
@@ -110,6 +310,166 @@ const fieldGroups = [
 ];
 
 const hasDepartmentLogo = (f) => f.showDepartmentLogo && f.departmentLogoUrl.trim();
+
+function showAppToast(title, icon = "success") {
+  Swal.fire({
+    title,
+    icon,
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    timer: 1800,
+    timerProgressBar: true,
+    background: "#0f172a",
+    color: "#e8f0ff",
+    customClass: {
+      popup: "app-swal-toast"
+    }
+  });
+}
+
+function escapeLatex(value = "") {
+  return String(value)
+    .replace(/\\/g, "\\textbackslash{}")
+    .replace(/&/g, "\\&")
+    .replace(/%/g, "\\%")
+    .replace(/\$/g, "\\$")
+    .replace(/#/g, "\\#")
+    .replace(/_/g, "\\_")
+    .replace(/{/g, "\\{")
+    .replace(/}/g, "\\}")
+    .replace(/~/g, "\\textasciitilde{}")
+    .replace(/\^/g, "\\textasciicircum{}");
+}
+
+function getTemplateForDepartment(departmentPreset) {
+  return labReportTemplates[departmentPreset] ?? labReportTemplates.custom;
+}
+
+function buildLatexCover(formData, studentRows) {
+  const rows = studentRows
+    .map(([label, value]) => `        \\textbf{${escapeLatex(label)}:} & ${escapeLatex(value)} \\\\`)
+    .join("\n");
+
+  return `\\begin{titlepage}
+    \\centering
+    {\\large\\bfseries ${escapeLatex(formData.reportPrefix)}\\par}
+    \\vspace{0.6cm}
+    {\\LARGE\\bfseries ${escapeLatex(formData.reportTitle)}\\par}
+    \\vspace{1.0cm}
+    {\\Large\\bfseries ${escapeLatex(formData.university)}\\par}
+    \\vspace{0.2cm}
+    {\\large ${escapeLatex(formData.department)}\\par}
+    \\vspace{0.9cm}
+
+    \\begin{tabular}{rl}
+        \\textbf{Course Code:} & ${escapeLatex(formData.courseCode)} \\\\
+        \\textbf{Course Title:} & ${escapeLatex(formData.courseTitle)} \\\\
+        \\textbf{Experiment No.:} & ${escapeLatex(formData.experimentNo)} \\\\
+        \\textbf{Experiment Date:} & ${escapeLatex(formData.experimentDate)} \\\\
+    \\end{tabular}
+
+    \\vfill
+
+    \\begin{minipage}{0.45\\textwidth}
+        \\textbf{Submitted To:}\\\\[0.2cm]
+        ${escapeLatex(formData.teacherName)}\\\\
+        \\textit{${escapeLatex(formData.teacherTitle)}}\\\\
+        ${escapeLatex(formData.teacherDepartment)}\\\\
+        ${escapeLatex(formData.university)}
+    \\end{minipage}
+    \\hfill
+    \\begin{minipage}{0.45\\textwidth}
+        \\textbf{Submitted By:}\\\\[0.2cm]
+        \\begin{tabular}{rl}
+${rows}
+        \\end{tabular}
+    \\end{minipage}
+
+    \\vfill
+    \\textbf{Date of Submission:} ${escapeLatex(formData.submissionDate)}
+
+    \\vspace{0.8cm}
+    {\\bfseries ${escapeLatex(formData.department)}\\par}
+    {\\bfseries ${escapeLatex(formData.university)}\\par}
+\\end{titlepage}`;
+}
+
+function buildSectionBody(section, helpers) {
+  const key = section.toLowerCase();
+
+  if (key.includes("source code")) {
+    return "\\begin{lstlisting}[language=Python, caption={Source code}]\n# Paste your code here\n\\end{lstlisting}";
+  }
+
+  if (key.includes("algorithm")) {
+    return "\\begin{enumerate}\n    \\item Start the program or experiment.\n    \\item Take the required input or data.\n    \\item Process the data according to the method.\n    \\item Record output and result.\n\\end{enumerate}";
+  }
+
+  if (key.includes("apparatus") || key.includes("materials") || key.includes("chemicals") || key.includes("reagents")) {
+    return "\\begin{itemize}\n    \\item Item 1\n    \\item Item 2\n    \\item Item 3\n\\end{itemize}";
+  }
+
+  if (key.includes("data") || key.includes("observation") || key.includes("sample") || key.includes("survey")) {
+    return latexCommandCards[1].code;
+  }
+
+  if (key.includes("calculation") || key.includes("analysis") || helpers.includes("equation")) {
+    return "% Write calculation here. Example:\n\\[\n    \\text{Result} = \\frac{\\text{Observed value}}{\\text{Standard value}}\n\\]";
+  }
+
+  return "% Write this section here.";
+}
+
+function buildOverleafDocument(formData, studentRows, selectedPage, template) {
+  const sections = template.sections
+    .map((section) => `\\section{${escapeLatex(section)}}\n${buildSectionBody(section, template.helpers)}`)
+    .join("\n\n");
+
+  const paperName = selectedPage.label === "A4" ? "a4paper" : "";
+  const paperComment = selectedPage.label === "Custom"
+    ? `% Custom page selected in app: ${selectedPage.widthMm}mm x ${selectedPage.heightMm}mm`
+    : `% Page size selected in app: ${selectedPage.label} (${selectedPage.widthMm}mm x ${selectedPage.heightMm}mm)`;
+
+  return `\\documentclass[12pt${paperName ? `,${paperName}` : ""}]{article}
+\\usepackage[margin=1in]{geometry}
+\\usepackage{graphicx}
+\\usepackage{float}
+\\usepackage{amsmath}
+\\usepackage{booktabs}
+\\usepackage{xcolor}
+\\usepackage{listings}
+\\usepackage{hyperref}
+\\usepackage{subcaption}
+\\usepackage{siunitx}
+\\usepackage[version=4]{mhchem}
+\\usepackage{tikz}
+\\usepackage{pgfplots}
+\\pgfplotsset{compat=1.18}
+
+${paperComment}
+
+\\lstset{
+    basicstyle=\\ttfamily\\small,
+    breaklines=true,
+    frame=single,
+    columns=fullflexible,
+    keywordstyle=\\color{blue},
+    commentstyle=\\color{gray}
+}
+
+\\begin{document}
+
+${buildLatexCover(formData, studentRows)}
+
+\\tableofcontents
+\\newpage
+
+${sections}
+
+\\end{document}
+`;
+}
 
 /* ── Particle canvas hook ── */
 function useParticles(canvasRef) {
@@ -260,7 +620,40 @@ function CoverPage({ formData, paperStyle, studentRows, is3D, cardRef }) {
    EDITOR FORM  — proper named component
    so React correctly re-renders on state
 ════════════════════════════════════ */
-function EditorForm({ formData, activeSection, toggleSection, updateField, updateDepartmentPreset, selectedPage }) {
+function EditorForm({
+  formData,
+  activeSection,
+  toggleSection,
+  updateField,
+  updateDepartmentPreset,
+  selectedPage,
+  selectedTemplate,
+  studentRows,
+  overleafCode,
+  copyText,
+  downloadText
+}) {
+  const [commandQuery, setCommandQuery] = useState("");
+  const [commandCategory, setCommandCategory] = useState("all");
+  const commandCategories = useMemo(
+    () => [...new Set(latexCommandCards.map((card) => card.category))],
+    []
+  );
+  const filteredCommandCards = useMemo(() => {
+    const q = commandQuery.trim().toLowerCase();
+    return latexCommandCards.filter((card) => {
+      const matchesCategory = commandCategory === "all" || card.category === commandCategory;
+      const searchable = `${card.category} ${card.title} ${card.hint} ${card.code}`.toLowerCase();
+      return matchesCategory && (!q || searchable.includes(q));
+    });
+  }, [commandCategory, commandQuery]);
+  const allCommandText = useMemo(
+    () => latexCommandCards
+      .map((card) => `% ${card.category} - ${card.title}\n${card.code}`)
+      .join("\n\n"),
+    []
+  );
+
   return (
     <form className="form-grid">
       {/* Cover Options */}
@@ -345,6 +738,106 @@ function EditorForm({ formData, activeSection, toggleSection, updateField, updat
         </div>
       ))}
 
+      {/* Overleaf Builder */}
+      <div className={`accordion-item ${activeSection === "overleaf" ? "active" : ""}`}>
+        <button type="button" className="accordion-header" onClick={() => toggleSection("overleaf")}>
+          <span className="accordion-title-wrapper">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3" />
+              <path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3" />
+              <path d="M14 8l-4 8" />
+              <path d="M9 8H7v8h2" />
+              <path d="M15 8h2v8h-2" />
+            </svg>
+            <span>Overleaf Builder</span>
+          </span>
+          <svg className="accordion-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+        </button>
+        {activeSection === "overleaf" && (
+          <div className="accordion-content overleaf-panel">
+            <div className="template-summary">
+              <strong>{selectedTemplate.title}</strong>
+              <span>{selectedTemplate.focus}</span>
+            </div>
+
+            <div className="section-pill-grid">
+              {selectedTemplate.sections.map((section) => (
+                <span key={section}>{section}</span>
+              ))}
+            </div>
+
+            <div className="latex-actions">
+              <button type="button" onClick={() => copyText(overleafCode, "Full Overleaf LaTeX copied")}>
+                Copy full LaTeX
+              </button>
+              <button type="button" className="secondary" onClick={() => downloadText("main.tex", overleafCode)}>
+                Download main.tex
+              </button>
+              <button type="button" className="secondary" onClick={() => copyText(buildLatexCover(formData, studentRows), "Cover page LaTeX copied")}>
+                Copy cover only
+              </button>
+            </div>
+
+            <label>
+              <span>Generated Overleaf main.tex</span>
+              <textarea className="latex-preview" readOnly value={overleafCode} rows="12" />
+            </label>
+
+            <div className="command-finder">
+              <label>
+                <span>Find Overleaf command</span>
+                <input
+                  value={commandQuery}
+                  onChange={(e) => setCommandQuery(e.target.value)}
+                  placeholder="Search image, table, equation, code, chemistry..."
+                />
+              </label>
+              <label>
+                <span>Command category</span>
+                <select value={commandCategory} onChange={(e) => setCommandCategory(e.target.value)}>
+                  <option value="all">All categories</option>
+                  {commandCategories.map((category) => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="command-toolbar">
+              <span>{filteredCommandCards.length} command{filteredCommandCards.length === 1 ? "" : "s"} ready</span>
+              <button type="button" className="secondary" onClick={() => copyText(allCommandText, "All Overleaf commands copied")}>
+                Copy all commands
+              </button>
+            </div>
+
+            <div className="command-grid">
+              {filteredCommandCards.map((card) => (
+                <div className="command-card" key={card.title}>
+                  <div>
+                    <small className="command-category">{card.category}</small>
+                    <strong>{card.title}</strong>
+                    <span>{card.hint}</span>
+                  </div>
+                  <pre>{card.code}</pre>
+                  <button type="button" className="secondary" onClick={() => copyText(card.code, `${card.title} command copied`)}>
+                    Copy command
+                  </button>
+                </div>
+              ))}
+              {!filteredCommandCards.length && (
+                <div className="empty-command-state">
+                  No command found. Try keywords like table, image, math, code, reference, or chemistry.
+                </div>
+              )}
+            </div>
+
+            <p className="form-hint">
+              Overleaf workflow: create a blank project, upload images if needed, paste or upload <strong>main.tex</strong>, then compile.
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* Quick Portals */}
       <div className={`accordion-item ${activeSection === "sub-utilities" ? "active" : ""}`}>
         <button type="button" className="accordion-header" onClick={() => toggleSection("sub-utilities")}>
@@ -413,6 +906,11 @@ function App() {
     return pageSizes.find((p) => p.id === formData.pageSize) ?? pageSizes[0];
   }, [formData.customHeightMm, formData.customWidthMm, formData.pageSize]);
 
+  const selectedTemplate = useMemo(
+    () => getTemplateForDepartment(formData.departmentPreset),
+    [formData.departmentPreset]
+  );
+
   useEffect(() => {
     const handleResize = () => {
       if (!containerRef.current) return;
@@ -473,6 +971,11 @@ function App() {
     ["Reg. No.", formData.registration]
   ].filter(([,v]) => v.trim()), [formData]);
 
+  const overleafCode = useMemo(
+    () => buildOverleafDocument(formData, studentRows, selectedPage, selectedTemplate),
+    [formData, studentRows, selectedPage, selectedTemplate]
+  );
+
   function updateField(k, v) {
     setFormData((c) => {
       const next = { ...c, [k]: v };
@@ -501,6 +1004,34 @@ function App() {
   }
   function resetForm() { setFormData(defaultData); }
   function handlePrint() { setTimeout(() => window.print(), 60); }
+  async function copyText(text, message = "Copied") {
+    try {
+      await navigator.clipboard.writeText(text);
+      showAppToast(message);
+    } catch {
+      Swal.fire({
+        title: "Copy failed",
+        text: "Please select the text and copy it manually.",
+        icon: "error",
+        confirmButtonText: "OK",
+        background: "#0f172a",
+        color: "#e8f0ff",
+        confirmButtonColor: "#2563eb"
+      });
+    }
+  }
+  function downloadText(filename, text) {
+    const blob = new Blob([text], { type: "text/x-tex;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showAppToast(`${filename} downloaded`);
+  }
 
   return (
     <main className="app-shell">
@@ -566,6 +1097,11 @@ function App() {
             updateField={updateField}
             updateDepartmentPreset={updateDepartmentPreset}
             selectedPage={selectedPage}
+            selectedTemplate={selectedTemplate}
+            studentRows={studentRows}
+            overleafCode={overleafCode}
+            copyText={copyText}
+            downloadText={downloadText}
           />
         </div>
       </section>

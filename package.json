@@ -11,9 +11,10 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "sweetalert2": "^11.26.24",
+    "vite": "latest"
   },
   "devDependencies": {
     "gh-pages": "^6.1.1"
