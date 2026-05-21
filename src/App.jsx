@@ -1166,6 +1166,14 @@ function EditorForm({
         </button>
         {activeSection === "profiles" && (
           <div className="accordion-content">
+            <div className="profile-instructions" style={{ background: "rgba(59, 130, 246, 0.05)", borderLeft: "3px solid var(--text-accent)", padding: "8px 12px", borderRadius: "4px", marginBottom: "12px", fontSize: "0.78rem", color: "var(--text-secondary)" }}>
+              <strong>How to save a profile:</strong>
+              <ol style={{ margin: "4px 0 0 0", paddingLeft: "16px", lineHeight: "1.4" }}>
+                <li>Fill out your student details under the <strong>"Submitted By"</strong> section below.</li>
+                <li>Enter a profile label (e.g., <em>"My CSE Profile"</em>) in the input box below.</li>
+                <li>Click <strong>"Save Info"</strong>. The profile will appear here and can be loaded in one click on your next visit!</li>
+              </ol>
+            </div>
             <div className="profile-save-box" style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
               <input
                 value={newProfileName}
