@@ -1293,7 +1293,11 @@ textarea { resize: vertical; min-height: 76px; line-height: 1.55; }
 .person-name { font-weight: 800; font-size: calc(1.05rem * var(--content-scale)) !important; }
 
 dl { display: grid; gap: calc(7px * var(--content-scale)); margin: 0; }
-dl div { display: grid; grid-template-columns: calc(80px * var(--content-scale)) 1fr; }
+dl div {
+  column-gap: calc(10px * var(--content-scale));
+  display: grid;
+  grid-template-columns: max-content 1fr;
+}
 dt { font-weight: 700; }
 dd { margin: 0; }
 
