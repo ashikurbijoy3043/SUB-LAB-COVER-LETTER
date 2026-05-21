@@ -914,20 +914,21 @@ function App() {
   useEffect(() => {
     const handleResize = () => {
       if (!containerRef.current) return;
-      const cW = containerRef.current.clientWidth  - 48;
-      const cH = containerRef.current.clientHeight - 80;
+      const isMobilePreview = window.matchMedia("(max-width: 768px)").matches;
+      const cW = containerRef.current.clientWidth - (isMobilePreview ? 24 : 48);
+      const cH = containerRef.current.clientHeight - (isMobilePreview ? 132 : 80);
       const pW = 794 * (selectedPage.widthMm  / 210);
       const pH = 794 * (selectedPage.heightMm / 210);
       let s = Math.min(cW / pW, cH / pH);
-      if (formData.previewMode === "large") s = cW / pW;
-      setScaleFactor(Math.max(s, 0.12));
+      if (formData.previewMode === "large" && !isMobilePreview) s = cW / pW;
+      setScaleFactor(Math.min(Math.max(s, 0.12), 1.05));
     };
-    handleResize();
+    const frame = requestAnimationFrame(handleResize);
     window.addEventListener("resize", handleResize);
     const obs = new ResizeObserver(handleResize);
     if (containerRef.current) obs.observe(containerRef.current);
-    return () => { window.removeEventListener("resize", handleResize); obs.disconnect(); };
-  }, [selectedPage.widthMm, selectedPage.heightMm, formData.previewMode]);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener("resize", handleResize); obs.disconnect(); };
+  }, [selectedPage.widthMm, selectedPage.heightMm, formData.previewMode, mobileTab]);
 
   /* 3D tilt */
   const handleMouseMove = useCallback((e) => {
