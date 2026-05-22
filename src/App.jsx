@@ -633,7 +633,33 @@ const fieldGroups = [
   }
 ];
 
-const hasDepartmentLogo = (f) => f.showDepartmentLogo && f.departmentLogoUrl.trim();
+const hasDepartmentLogo = (f) => f.showDepartmentLogo && getSafeImageSrc(f.departmentLogoUrl);
+
+const SAFE_DATA_IMAGE_PATTERN = /^data:image\/(?:png|jpe?g|gif|webp);base64,/i;
+
+function getSafeImageSrc(value, fallback = "") {
+  const candidate = String(value ?? "").trim();
+  if (!candidate) return fallback;
+
+  if ((candidate.startsWith("/") && !candidate.startsWith("//")) || candidate.startsWith("./") || candidate.startsWith("../")) {
+    return candidate;
+  }
+
+  try {
+    const baseOrigin = globalThis.location?.origin ?? "http://localhost";
+    const url = new URL(candidate, baseOrigin);
+    if (url.protocol === "http:" || url.protocol === "https:" || url.protocol === "blob:") {
+      return url.href;
+    }
+    if (url.protocol === "data:" && SAFE_DATA_IMAGE_PATTERN.test(candidate)) {
+      return candidate;
+    }
+  } catch {
+    // Invalid image URLs are ignored so they cannot be used as browser navigation sinks.
+  }
+
+  return fallback;
+}
 
 function showAppToast(title, icon = "success") {
   Swal.fire({
@@ -817,17 +843,20 @@ async function buildDocxCover(formData, studentRows, selectedPage) {
 }
 
 function escapeLatex(value = "") {
-  return String(value)
-    .replace(/\\/g, "\\textbackslash{}")
-    .replace(/&/g, "\\&")
-    .replace(/%/g, "\\%")
-    .replace(/\$/g, "\\$")
-    .replace(/#/g, "\\#")
-    .replace(/_/g, "\\_")
-    .replace(/{/g, "\\{")
-    .replace(/}/g, "\\}")
-    .replace(/~/g, "\\textasciitilde{}")
-    .replace(/\^/g, "\\textasciicircum{}");
+  const replacements = {
+    "\\": "\\textbackslash{}",
+    "&": "\\&",
+    "%": "\\%",
+    "$": "\\$",
+    "#": "\\#",
+    "_": "\\_",
+    "{": "\\{",
+    "}": "\\}",
+    "~": "\\textasciitilde{}",
+    "^": "\\textasciicircum{}"
+  };
+
+  return String(value).replace(/[\\&%$#_{}~^]/g, (char) => replacements[char]);
 }
 
 function getTemplateForDepartment(departmentPreset) {
@@ -1070,6 +1099,13 @@ function CoverPage({
   showGrid,
   showGuides
 }) {
+  const bannerImageSrc = getSafeImageSrc(formData.bannerImageUrl);
+  const departmentLogoSrc = getSafeImageSrc(formData.departmentLogoUrl);
+  const primaryLogoSrc = formData.useCustomLogo
+    ? getSafeImageSrc(formData.customLogoUrl, SUB_LOGO_URL)
+    : SUB_LOGO_URL;
+  const signatureSrc = getSafeImageSrc(formData.customSignatureUrl);
+
   return (
     <div className={`paper layout-${formData.layoutTheme || "classic"} pattern-${formData.bgPattern || "none"} ${formData.coverDarkMode ? "cover-dark" : ""}`} style={paperStyle} ref={cardRef}>
       {is3D && <div className="paper-glare" />}
@@ -1112,9 +1148,9 @@ function CoverPage({
         </>
       )}
 
-      {formData.useBannerImage && formData.bannerImageUrl && (
+      {formData.useBannerImage && bannerImageSrc && (
         <div className="cover-banner">
-          <img src={formData.bannerImageUrl} alt="Custom cover banner" />
+          <img src={bannerImageSrc} alt="Custom cover banner" />
         </div>
       )}
 
@@ -1124,9 +1160,9 @@ function CoverPage({
       </div>
 
       <div className={`logos ${hasDepartmentLogo(formData) ? "" : "logos-single"}`}>
-        <img src={formData.useCustomLogo && formData.customLogoUrl ? formData.customLogoUrl : SUB_LOGO_URL} alt="State University of Bangladesh logo" />
-        {hasDepartmentLogo(formData) && (
-          <img className="department-logo" src={formData.departmentLogoUrl} alt={`${formData.department} logo`} />
+        <img src={primaryLogoSrc} alt="State University of Bangladesh logo" />
+        {departmentLogoSrc && formData.showDepartmentLogo && (
+          <img className="department-logo" src={departmentLogoSrc} alt={`${formData.department} logo`} />
         )}
       </div>
 
@@ -1150,10 +1186,10 @@ function CoverPage({
         <div>
           <h3>{t(formData, "submittedBy")}:</h3>
           <div className="rule" />
-          {formData.useCustomSignature && formData.customSignatureUrl ? (
+          {formData.useCustomSignature && signatureSrc ? (
             <div className="signature-container" style={{ margin: "4px 0", textAlign: "left" }}>
               <img
-                src={formData.customSignatureUrl}
+                src={signatureSrc}
                 alt="Signature"
                 style={{ maxHeight: "35px", maxWidth: "120px", objectFit: "contain", display: "block" }}
               />
@@ -1259,6 +1295,8 @@ function AcknowledgementPage({ paperStyle, ackData, showRulers, showGrid, showGu
 }
 
 function TransmittalPage({ formData, paperStyle, transmittalData, showRulers, showGrid, showGuides, selectedPage, cardRef, pageOffset = 0 }) {
+  const signatureSrc = getSafeImageSrc(formData.customSignatureUrl);
+
   return (
     <div className="paper" style={paperStyle} ref={cardRef}>
       <div className="paper-texture" />
@@ -1317,8 +1355,8 @@ function TransmittalPage({ formData, paperStyle, transmittalData, showRulers, sh
         <div className="signature-block">
           <p>{transmittalData.signOff}</p>
           <div className="signature-line-container">
-            {formData.useCustomSignature && formData.customSignatureUrl ? (
-              <img className="uploaded-signature-img" src={formData.customSignatureUrl} alt="Signature" />
+            {formData.useCustomSignature && signatureSrc ? (
+              <img className="uploaded-signature-img" src={signatureSrc} alt="Signature" />
             ) : (
               <div className="signature-line" />
             )}
@@ -2036,7 +2074,7 @@ function EditorForm({
               {formData.useBannerImage && (
                 <label style={{ display: "block" }}>
                   <input type="file" accept="image/*" onChange={handleBannerUpload} style={{ fontSize: "0.8rem" }} />
-                  {formData.bannerImageUrl && <img src={formData.bannerImageUrl} alt="banner" style={{ marginTop: "6px", maxHeight: "50px", maxWidth: "100%", borderRadius: "4px", border: "1px solid var(--border-subtle)" }} />}
+                  {getSafeImageSrc(formData.bannerImageUrl) && <img src={getSafeImageSrc(formData.bannerImageUrl)} alt="banner" style={{ marginTop: "6px", maxHeight: "50px", maxWidth: "100%", borderRadius: "4px", border: "1px solid var(--border-subtle)" }} />}
                 </label>
               )}
             </div>
@@ -2153,9 +2191,9 @@ function EditorForm({
                       onChange={handleLogoUpload}
                       style={{ fontSize: "0.8rem", width: "100%" }}
                     />
-                    {formData.customLogoUrl && (
+                    {getSafeImageSrc(formData.customLogoUrl) && (
                       <div style={{ marginTop: "6px", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <img src={formData.customLogoUrl} alt="Logo Preview" style={{ maxHeight: "30px", maxWidth: "60px", objectFit: "contain", borderRadius: "3px" }} />
+                        <img src={getSafeImageSrc(formData.customLogoUrl)} alt="Logo Preview" style={{ maxHeight: "30px", maxWidth: "60px", objectFit: "contain", borderRadius: "3px" }} />
                         <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Logo uploaded successfully</span>
                       </div>
                     )}
@@ -2186,9 +2224,9 @@ function EditorForm({
                         updateField("customSignatureUrl", "");
                       }}
                     />
-                    {formData.customSignatureUrl && (
+                    {getSafeImageSrc(formData.customSignatureUrl) && (
                       <div style={{ marginTop: "6px", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <img src={formData.customSignatureUrl} alt="Signature Preview" style={{ maxHeight: "30px", maxWidth: "60px", objectFit: "contain", borderRadius: "3px" }} />
+                        <img src={getSafeImageSrc(formData.customSignatureUrl)} alt="Signature Preview" style={{ maxHeight: "30px", maxWidth: "60px", objectFit: "contain", borderRadius: "3px" }} />
                         <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Signature ready</span>
                       </div>
                     )}
