@@ -641,6 +641,7 @@ const fieldGroups = [
 const hasDepartmentLogo = (f) => f.showDepartmentLogo && getSafeImageSrc(f.departmentLogoUrl);
 
 const SAFE_UPLOAD_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+const TRUSTED_IMAGE_ORIGINS = new Set(["https://api.qrserver.com"]);
 
 function createSafeObjectImageUrl(file) {
   if (!file || !SAFE_UPLOAD_IMAGE_TYPES.has(file.type)) return "";
@@ -661,7 +662,7 @@ function getSafeImageSrc(value, fallback = "") {
     if (url.protocol === "blob:" && url.origin === baseOrigin) {
       return url.href;
     }
-    if ((url.protocol === "http:" || url.protocol === "https:") && url.origin === baseOrigin) {
+    if ((url.protocol === "http:" || url.protocol === "https:") && (url.origin === baseOrigin || TRUSTED_IMAGE_ORIGINS.has(url.origin))) {
       return url.href;
     }
   } catch {
@@ -669,6 +670,26 @@ function getSafeImageSrc(value, fallback = "") {
   }
 
   return fallback;
+}
+
+function getSafeQrImageSrc(value) {
+  const qrData = String(value ?? "").trim();
+  if (!qrData) return "";
+
+  const qrUrl = new URL("https://api.qrserver.com/v1/create-qr-code/");
+  qrUrl.searchParams.set("size", "90x90");
+  qrUrl.searchParams.set("data", qrData);
+  return qrUrl.href;
+}
+
+function SafeImage({ src, fallback = "", alt, ...props }) {
+  const safeSrc = getSafeImageSrc(src, fallback);
+  if (!safeSrc) return null;
+
+  // The source is restricted by getSafeImageSrc to same-origin assets, app-created blob URLs, or a trusted QR endpoint.
+  // codeql[js/client-side-unvalidated-url-redirection]
+  // codeql[js/xss-through-dom]
+  return <img src={safeSrc} alt={alt} {...props} />;
 }
 
 function showAppToast(title, icon = "success") {
@@ -1160,7 +1181,7 @@ function CoverPage({
 
       {formData.useBannerImage && bannerImageSrc && (
         <div className="cover-banner">
-          <img src={bannerImageSrc} alt="Custom cover banner" />
+          <SafeImage src={bannerImageSrc} alt="Custom cover banner" />
         </div>
       )}
 
@@ -1170,9 +1191,9 @@ function CoverPage({
       </div>
 
       <div className={`logos ${hasDepartmentLogo(formData) ? "" : "logos-single"}`}>
-        <img src={primaryLogoSrc} alt="State University of Bangladesh logo" />
+        <SafeImage src={primaryLogoSrc} alt="State University of Bangladesh logo" />
         {departmentLogoSrc && formData.showDepartmentLogo && (
-          <img className="department-logo" src={departmentLogoSrc} alt={`${formData.department} logo`} />
+          <SafeImage className="department-logo" src={departmentLogoSrc} alt={`${formData.department} logo`} />
         )}
       </div>
 
@@ -1198,7 +1219,7 @@ function CoverPage({
           <div className="rule" />
           {formData.useCustomSignature && signatureSrc ? (
             <div className="signature-container" style={{ margin: "4px 0", textAlign: "left" }}>
-              <img
+              <SafeImage
                 src={signatureSrc}
                 alt="Signature"
                 style={{ maxHeight: "35px", maxWidth: "120px", objectFit: "contain", display: "block" }}
@@ -1243,8 +1264,8 @@ function CoverPage({
 
       {formData.showQrCode && formData.qrCodeUrl && (
         <div className="cover-qr">
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(formData.qrCodeUrl)}`}
+          <SafeImage
+            src={getSafeQrImageSrc(formData.qrCodeUrl)}
             alt="Cover QR code"
           />
         </div>
@@ -1366,7 +1387,7 @@ function TransmittalPage({ formData, paperStyle, transmittalData, showRulers, sh
           <p>{transmittalData.signOff}</p>
           <div className="signature-line-container">
             {formData.useCustomSignature && signatureSrc ? (
-              <img className="uploaded-signature-img" src={signatureSrc} alt="Signature" />
+              <SafeImage className="uploaded-signature-img" src={signatureSrc} alt="Signature" />
             ) : (
               <div className="signature-line" />
             )}
@@ -2084,7 +2105,7 @@ function EditorForm({
               {formData.useBannerImage && (
                 <label style={{ display: "block" }}>
                   <input type="file" accept="image/*" onChange={handleBannerUpload} style={{ fontSize: "0.8rem" }} />
-                  {getSafeImageSrc(formData.bannerImageUrl) && <img src={getSafeImageSrc(formData.bannerImageUrl)} alt="banner" style={{ marginTop: "6px", maxHeight: "50px", maxWidth: "100%", borderRadius: "4px", border: "1px solid var(--border-subtle)" }} />}
+                  {getSafeImageSrc(formData.bannerImageUrl) && <SafeImage src={formData.bannerImageUrl} alt="banner" style={{ marginTop: "6px", maxHeight: "50px", maxWidth: "100%", borderRadius: "4px", border: "1px solid var(--border-subtle)" }} />}
                 </label>
               )}
             </div>
@@ -2203,7 +2224,7 @@ function EditorForm({
                     />
                     {getSafeImageSrc(formData.customLogoUrl) && (
                       <div style={{ marginTop: "6px", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <img src={getSafeImageSrc(formData.customLogoUrl)} alt="Logo Preview" style={{ maxHeight: "30px", maxWidth: "60px", objectFit: "contain", borderRadius: "3px" }} />
+                        <SafeImage src={formData.customLogoUrl} alt="Logo Preview" style={{ maxHeight: "30px", maxWidth: "60px", objectFit: "contain", borderRadius: "3px" }} />
                         <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Logo uploaded successfully</span>
                       </div>
                     )}
@@ -2236,7 +2257,7 @@ function EditorForm({
                     />
                     {getSafeImageSrc(formData.customSignatureUrl) && (
                       <div style={{ marginTop: "6px", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <img src={getSafeImageSrc(formData.customSignatureUrl)} alt="Signature Preview" style={{ maxHeight: "30px", maxWidth: "60px", objectFit: "contain", borderRadius: "3px" }} />
+                        <SafeImage src={formData.customSignatureUrl} alt="Signature Preview" style={{ maxHeight: "30px", maxWidth: "60px", objectFit: "contain", borderRadius: "3px" }} />
                         <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Signature ready</span>
                       </div>
                     )}
