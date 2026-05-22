@@ -184,8 +184,13 @@ function SignatureDrawingPad({ onSave, onClear }) {
       });
       return;
     }
-    const dataUrl = canvas.toDataURL("image/png");
-    onSave(dataUrl);
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        showAppToast("Could not save the signature image.", "error");
+        return;
+      }
+      onSave(URL.createObjectURL(blob));
+    }, "image/png");
   };
 
   return (
@@ -635,7 +640,12 @@ const fieldGroups = [
 
 const hasDepartmentLogo = (f) => f.showDepartmentLogo && getSafeImageSrc(f.departmentLogoUrl);
 
-const SAFE_DATA_IMAGE_PATTERN = /^data:image\/(?:png|jpe?g|gif|webp);base64,/i;
+const SAFE_UPLOAD_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+
+function createSafeObjectImageUrl(file) {
+  if (!file || !SAFE_UPLOAD_IMAGE_TYPES.has(file.type)) return "";
+  return URL.createObjectURL(file);
+}
 
 function getSafeImageSrc(value, fallback = "") {
   const candidate = String(value ?? "").trim();
@@ -648,11 +658,11 @@ function getSafeImageSrc(value, fallback = "") {
   try {
     const baseOrigin = globalThis.location?.origin ?? "http://localhost";
     const url = new URL(candidate, baseOrigin);
-    if (url.protocol === "http:" || url.protocol === "https:" || url.protocol === "blob:") {
+    if (url.protocol === "blob:" && url.origin === baseOrigin) {
       return url.href;
     }
-    if (url.protocol === "data:" && SAFE_DATA_IMAGE_PATTERN.test(candidate)) {
-      return candidate;
+    if ((url.protocol === "http:" || url.protocol === "https:") && url.origin === baseOrigin) {
+      return url.href;
     }
   } catch {
     // Invalid image URLs are ignored so they cannot be used as browser navigation sinks.
@@ -3189,9 +3199,13 @@ function App() {
   const handleBannerUpload = useCallback((e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => updateField("bannerImageUrl", ev.target.result);
-    reader.readAsDataURL(file);
+    const objectUrl = createSafeObjectImageUrl(file);
+    if (!objectUrl) {
+      showAppToast("Please upload a PNG, JPG, GIF, or WebP image.", "error");
+      e.target.value = null;
+      return;
+    }
+    updateField("bannerImageUrl", objectUrl);
   }, []);
 
 
@@ -3325,32 +3339,34 @@ function App() {
 
   const handleLogoUpload = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
-        setFormData((prev) => ({
-          ...prev,
-          customLogoUrl: uploadEvent.target.result
-        }));
-        showAppToast("Custom logo uploaded!");
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    const objectUrl = createSafeObjectImageUrl(file);
+    if (!objectUrl) {
+      showAppToast("Please upload a PNG, JPG, GIF, or WebP image.", "error");
+      e.target.value = null;
+      return;
     }
+    setFormData((prev) => ({
+      ...prev,
+      customLogoUrl: objectUrl
+    }));
+    showAppToast("Custom logo uploaded!");
   };
 
   const handleSignatureUpload = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
-        setFormData((prev) => ({
-          ...prev,
-          customSignatureUrl: uploadEvent.target.result
-        }));
-        showAppToast("Signature uploaded!");
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    const objectUrl = createSafeObjectImageUrl(file);
+    if (!objectUrl) {
+      showAppToast("Please upload a PNG, JPG, GIF, or WebP image.", "error");
+      e.target.value = null;
+      return;
     }
+    setFormData((prev) => ({
+      ...prev,
+      customSignatureUrl: objectUrl
+    }));
+    showAppToast("Signature uploaded!");
   };
 
   useParticles(canvasRef);
