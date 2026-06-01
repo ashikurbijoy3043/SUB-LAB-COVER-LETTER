@@ -240,7 +240,7 @@ function SignatureDrawingPad({ onSave, onClear }) {
   );
 }
 
-const optionalFields = new Set(["group", "session", "registration", "departmentLogoUrl"]);
+const optionalFields = new Set(["group", "session", "registration", "departmentLogoUrl", "experimentDate"]);
 
 const TRANSLATIONS = {
   en: {
@@ -350,8 +350,8 @@ function getCourseRows(formData) {
     [t(formData, "courseCode"), formData.courseCode, false],
     [t(formData, "courseTitle"), formData.courseTitle, false],
     [getExperimentNoLabel(formData), formData.experimentNo, formData.experimentNoOptional],
-    [t(formData, "experimentDate"), formData.experimentDate, false]
-  ].filter(([, value, optional]) => !optional || value.trim());
+    [t(formData, "experimentDate"), formData.experimentDate, true]
+  ].filter(([, value, optional]) => !optional || value?.trim());
 }
 
 const exportFormats = [
