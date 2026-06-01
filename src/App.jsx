@@ -43,6 +43,8 @@ const defaultData = {
   courseTitle: "Software Engineering Lab",
   experimentNo: "01",
   experimentNoOptional: false,
+  experimentNoLabelType: "default",
+  customExperimentNoLabel: "",
   experimentDate: "17 May 2026",
   teacherName: "SAKIB AL HASAN",
   teacherTitle: "Associate Professor",
@@ -248,6 +250,10 @@ const TRANSLATIONS = {
     courseTitle: "Course Title",
     experimentNo: "Experiment No.",
     labProgramNo: "Lab / Program No.",
+    assignmentNo: "Assignment No.",
+    labNo: "Lab No.",
+    labReportNo: "Lab Report No.",
+    programNo: "Program No.",
     experimentDate: "Experiment Date",
     academicSubmission: "Academic Submission",
     submittedTo: "Submitted To",
@@ -267,6 +273,10 @@ const TRANSLATIONS = {
     courseTitle: "কোর্সের শিরোনাম",
     experimentNo: "এক্সপেরিমেন্ট নং",
     labProgramNo: "ল্যাব / প্রোগ্রাম নং",
+    assignmentNo: "অ্যাসাইনমেন্ট নং",
+    labNo: "ল্যাব নং",
+    labReportNo: "ল্যাব রিপোর্ট নং",
+    programNo: "প্রোগ্রাম নং",
     experimentDate: "এক্সপেরিমেন্টের তারিখ",
     academicSubmission: "একাডেমিক জমাদান",
     submittedTo: "জমা দেওয়া হয়েছে",
@@ -330,7 +340,14 @@ function isMissingRequiredField(formData, key) {
 }
 
 function getExperimentNoLabel(formData) {
-  return formData.departmentPreset === "cse" ? t(formData, "labProgramNo") : t(formData, "experimentNo");
+  const type = formData.experimentNoLabelType || "default";
+  if (type === "default") {
+    return formData.departmentPreset === "cse" ? t(formData, "labProgramNo") : t(formData, "experimentNo");
+  }
+  if (type === "custom") {
+    return formData.customExperimentNoLabel || "Custom No.";
+  }
+  return t(formData, type);
 }
 
 function getFieldLabel(formData, key, fallbackLabel) {
@@ -2779,29 +2796,84 @@ function EditorForm({
                   </Button>
                 </div>
               ) : (
-                group.fields.map(([key, label]) => (
-                  <label key={key}>
-                    <span>
-                      {getFieldLabel(formData, key, label)}
-                      {isOptionalField(formData, key) && <Badge>Optional</Badge>}
-                      {isRequiredField(formData, key) && <Badge variant="success">Required</Badge>}
-                    {key === "reportTitle" && (
-                      <small style={{ color: getCounterTone(countWords(formData.reportTitle), 24) }}>
-                        {countWords(formData.reportTitle)}/24 words
-                      </small>
-                    )}
-                    </span>
-                    {key === "reportTitle"
-                      ? <textarea className={isMissingRequiredField(formData, key) ? "field-missing" : undefined} value={formData[key]} onChange={(e) => updateField(key, e.target.value)} rows="3" />
-                      : <input
-                          className={isMissingRequiredField(formData, key) ? "field-missing" : undefined}
-                          value={formData[key]}
-                          onChange={(e) => updateField(key, e.target.value)}
-                          required={isRequiredField(formData, key)}
-                          aria-required={isRequiredField(formData, key)}
-                        />}
-                  </label>
-                ))
+                group.fields.map(([key, label]) => {
+                  if (key === "experimentNo") {
+                    const isCustom = formData.experimentNoLabelType === "custom";
+                    return (
+                      <div key={key} className="experiment-no-wrapper" style={{ gridColumn: "span 2", display: "flex", flexDirection: "column", gap: "10px", marginBottom: "4px" }}>
+                        <div className="experiment-no-container" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "10px", width: "100%" }}>
+                          <label style={{ margin: 0 }}>
+                            <span>Number Label Style</span>
+                            <select
+                              value={formData.experimentNoLabelType || "default"}
+                              onChange={(e) => updateField("experimentNoLabelType", e.target.value)}
+                              style={{ width: "100%" }}
+                            >
+                              <option value="default">Default ({formData.departmentPreset === "cse" ? "Lab/Prog No." : "Exp No."})</option>
+                              <option value="labProgramNo">Lab / Program No.</option>
+                              <option value="experimentNo">Experiment No.</option>
+                              <option value="assignmentNo">Assignment No.</option>
+                              <option value="labNo">Lab No.</option>
+                              <option value="labReportNo">Lab Report No.</option>
+                              <option value="programNo">Program No.</option>
+                              <option value="custom">Custom...</option>
+                            </select>
+                          </label>
+                          <label style={{ margin: 0 }}>
+                            <span>
+                              Number
+                              {isOptionalField(formData, key) && <Badge>Optional</Badge>}
+                              {isRequiredField(formData, key) && <Badge variant="success">Required</Badge>}
+                            </span>
+                            <input
+                              className={isMissingRequiredField(formData, key) ? "field-missing" : undefined}
+                              value={formData[key]}
+                              onChange={(e) => updateField(key, e.target.value)}
+                              required={isRequiredField(formData, key)}
+                              aria-required={isRequiredField(formData, key)}
+                              placeholder="e.g. 01"
+                              style={{ width: "100%" }}
+                            />
+                          </label>
+                        </div>
+                        {isCustom && (
+                          <label style={{ margin: 0 }}>
+                            <span>Custom Label Text</span>
+                            <input
+                              value={formData.customExperimentNoLabel || ""}
+                              onChange={(e) => updateField("customExperimentNoLabel", e.target.value)}
+                              placeholder="e.g. Task No. or Worksheet No."
+                              style={{ width: "100%" }}
+                            />
+                          </label>
+                        )}
+                      </div>
+                    );
+                  }
+                  return (
+                    <label key={key}>
+                      <span>
+                        {getFieldLabel(formData, key, label)}
+                        {isOptionalField(formData, key) && <Badge>Optional</Badge>}
+                        {isRequiredField(formData, key) && <Badge variant="success">Required</Badge>}
+                      {key === "reportTitle" && (
+                        <small style={{ color: getCounterTone(countWords(formData.reportTitle), 24) }}>
+                          {countWords(formData.reportTitle)}/24 words
+                        </small>
+                      )}
+                      </span>
+                      {key === "reportTitle"
+                        ? <textarea className={isMissingRequiredField(formData, key) ? "field-missing" : undefined} value={formData[key]} onChange={(e) => updateField(key, e.target.value)} rows="3" />
+                        : <input
+                            className={isMissingRequiredField(formData, key) ? "field-missing" : undefined}
+                            value={formData[key]}
+                            onChange={(e) => updateField(key, e.target.value)}
+                            required={isRequiredField(formData, key)}
+                            aria-required={isRequiredField(formData, key)}
+                          />}
+                    </label>
+                  );
+                })
               )}
             </div>
           )}
@@ -3151,7 +3223,7 @@ function App() {
 
   // ── URL State share/load ───────────────────────────────────────────────────
   const exportShareUrl = useCallback(() => {
-    const shareFields = { reportTitle: formData.reportTitle, university: formData.university, department: formData.department, courseCode: formData.courseCode, courseTitle: formData.courseTitle, teacherName: formData.teacherName, teacherTitle: formData.teacherTitle, submittedByName: formData.submittedByName, roll: formData.roll, year: formData.year, semester: formData.semester, layoutTheme: formData.layoutTheme, accentColor: formData.accentColor, fontFamily: formData.fontFamily };
+    const shareFields = { reportTitle: formData.reportTitle, university: formData.university, department: formData.department, courseCode: formData.courseCode, courseTitle: formData.courseTitle, teacherName: formData.teacherName, teacherTitle: formData.teacherTitle, submittedByName: formData.submittedByName, roll: formData.roll, year: formData.year, semester: formData.semester, layoutTheme: formData.layoutTheme, accentColor: formData.accentColor, fontFamily: formData.fontFamily, experimentNoLabelType: formData.experimentNoLabelType, customExperimentNoLabel: formData.customExperimentNoLabel };
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(shareFields))));
     const url = `${window.location.origin}${window.location.pathname}?state=${encoded}`;
     navigator.clipboard.writeText(url).then(() => showAppToast("Share link copied to clipboard!")).catch(() => showAppToast("Copy failed — check browser permissions", "error"));
@@ -3256,7 +3328,9 @@ function App() {
         status: formData.status,
         departmentPreset: formData.departmentPreset,
         department: formData.department,
-        university: formData.university
+        university: formData.university,
+        experimentNoLabelType: formData.experimentNoLabelType,
+        customExperimentNoLabel: formData.customExperimentNoLabel
       }
     };
     const updated = [...profiles, newProfile];
