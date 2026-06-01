@@ -2322,6 +2322,25 @@ footer p {
   color: #ffffff;
 }
 
+.lightbox-print.active {
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  border-color: rgba(96, 165, 250, 0.55);
+  color: #ffffff;
+}
+
+.toolbar-dropdown.lightbox-dropdown {
+  bottom: calc(100% + 10px);
+  top: auto;
+  right: 50%;
+  transform: translateX(50%);
+  animation: dropdownFadeInUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dropdownFadeInUp {
+  from { opacity: 0; transform: translate(50%, 8px) scale(0.96); }
+  to { opacity: 1; transform: translate(50%, 0) scale(1); }
+}
+
 .lightbox-hint kbd {
   background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.12);
