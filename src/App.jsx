@@ -2150,6 +2150,40 @@ function RubricPage({ paperStyle, showRulers, showGrid, showGuides, selectedPage
    EDITOR FORM  — proper named component
    so React correctly re-renders on state
 ════════════════════════════════════ */
+const getChecklistItems = (preset) => {
+  switch (preset) {
+    case "cse":
+      return [
+        { id: "cover", text: "Cover Page: Student name, roll, course code, and title verified" },
+        { id: "theory", text: "Theory & Algorithm: Flowcharts or pseudo-code properly outlined" },
+        { id: "code", text: "Source Code: Formatted code blocks pasted with comments" },
+        { id: "screenshots", text: "Screenshots: Complete input/output terminal run captures attached" },
+        { id: "complexity", text: "Big-O Analysis: Time and space complexity details included" },
+        { id: "conclusion", text: "Conclusion & Discussion: Lab results evaluated and signed off" }
+      ];
+    case "pharmacy":
+    case "food-engineering":
+    case "environmental-science":
+      return [
+        { id: "cover", text: "Cover Page: Lab details, dates, and instructor details verified" },
+        { id: "principle", text: "Theory & Principle: Scientific formulas and concepts explained" },
+        { id: "chemicals", text: "Chemicals & Reagents: Standard quantities and safety grades tabulated" },
+        { id: "apparatus", text: "Apparatus & Setup: Laboratory apparatus and setup diagram checked" },
+        { id: "procedure", text: "Procedure: Numbered steps of the experiment clearly written" },
+        { id: "data", text: "Observations: Titration data or weight tables fully populated" },
+        { id: "precautions", text: "Precautions: Practical safety steps and error warnings listed" }
+      ];
+    default:
+      return [
+        { id: "cover", text: "Cover Page: Header details, dates, and course titles verified" },
+        { id: "toc", text: "Table of Contents: Page numbers aligned to active sheets" },
+        { id: "intro", text: "Abstract/Objective: Brief summary and goal introduction written" },
+        { id: "method", text: "Methodology: Core report sections and data findings compiled" },
+        { id: "citations", text: "Citations: Bibliographies formatted in APA/MLA/IEEE style" }
+      ];
+  }
+};
+
 function compileCsvToLatex(csvText) {
   if (!csvText?.trim()) return "";
   const lines = csvText.trim().split(/\r?\n/).map(line => line.trim()).filter(Boolean);
@@ -2271,6 +2305,23 @@ function EditorForm({
   const [reportDraftText, setReportDraftText] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
+
+  const [eqTemplate, setEqTemplate] = useState("fraction");
+  const [eqParams, setEqParams] = useState({
+    numerator: "a",
+    denominator: "b",
+    base: "x",
+    exponent: "n",
+    term: "x",
+    lower: "0",
+    upper: "n",
+    body: "x_i",
+    matrixRows: "1 & 2\\\\3 & 4"
+  });
+
+  const [checklistChecked, setChecklistChecked] = useState({});
+
+
 
 
 
@@ -2536,6 +2587,30 @@ function EditorForm({
       setIsAnalyzing(false);
     }
   };
+
+  const updateEqParam = (key, val) => {
+    setEqParams(prev => ({ ...prev, [key]: val }));
+  };
+
+  const compiledEquation = useMemo(() => {
+    switch (eqTemplate) {
+      case "fraction":
+        return `\\frac{${eqParams.numerator}}{${eqParams.denominator}}`;
+      case "power":
+        return `${eqParams.base}^{${eqParams.exponent}}`;
+      case "root":
+        return `\\sqrt[${eqParams.exponent || "2"}]{${eqParams.term}}`;
+      case "sum":
+        return `\\sum_{${eqParams.base}=${eqParams.lower}}^{${eqParams.upper}} ${eqParams.body}`;
+      case "integral":
+        return `\\int_{${eqParams.lower}}^{${eqParams.upper}} ${eqParams.body} \\, d${eqParams.term}`;
+      case "matrix":
+        return `\\begin{pmatrix} ${eqParams.matrixRows} \\end{pmatrix}`;
+      default:
+        return "";
+    }
+  }, [eqTemplate, eqParams]);
+
 
 
 
@@ -4452,6 +4527,240 @@ function EditorForm({
               </div>
             </div>
 
+            {/* Visual LaTeX Equation Builder */}
+            <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "16px", marginTop: "12px" }}>
+              <span style={{ display: "block", fontSize: "0.76rem", fontWeight: "700", marginBottom: "4px", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.07rem" }}>Visual LaTeX Equation Builder</span>
+              <p className="form-hint" style={{ marginBottom: "8px" }}>Select a math structure, fill in variables, and copy the compiled LaTeX math command.</p>
+              
+              {/* Template selector tabs */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "10px" }}>
+                {[
+                  { id: "fraction", label: "Fraction" },
+                  { id: "power", label: "Power" },
+                  { id: "root", label: "Radical" },
+                  { id: "sum", label: "Summation" },
+                  { id: "integral", label: "Integral" },
+                  { id: "matrix", label: "Matrix" }
+                ].map((tmpl) => (
+                  <button
+                    key={tmpl.id}
+                    type="button"
+                    onClick={() => setEqTemplate(tmpl.id)}
+                    style={{
+                      background: eqTemplate === tmpl.id ? "rgba(99, 102, 241, 0.15)" : "transparent",
+                      border: `1px solid ${eqTemplate === tmpl.id ? "var(--text-accent)" : "var(--border-subtle)"}`,
+                      color: eqTemplate === tmpl.id ? "var(--text-accent)" : "var(--text-secondary)",
+                      fontSize: "0.72rem",
+                      fontWeight: eqTemplate === tmpl.id ? "700" : "500",
+                      padding: "4px 8px",
+                      cursor: "pointer",
+                      borderRadius: "4px",
+                      transition: "all 0.1s ease"
+                    }}
+                  >
+                    {tmpl.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Dynamic input slots */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "10px" }}>
+                {eqTemplate === "fraction" && (
+                  <>
+                    <label style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <span style={{ fontSize: "0.74rem", color: "var(--text-secondary)" }}>Numerator (Top)</span>
+                      <input value={eqParams.numerator} onChange={(e) => updateEqParam("numerator", e.target.value)} style={{ fontSize: "0.8rem", padding: "4px 8px" }} />
+                    </label>
+                    <label style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <span style={{ fontSize: "0.74rem", color: "var(--text-secondary)" }}>Denominator (Bottom)</span>
+                      <input value={eqParams.denominator} onChange={(e) => updateEqParam("denominator", e.target.value)} style={{ fontSize: "0.8rem", padding: "4px 8px" }} />
+                    </label>
+                  </>
+                )}
+                {eqTemplate === "power" && (
+                  <>
+                    <label style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <span style={{ fontSize: "0.74rem", color: "var(--text-secondary)" }}>Base Variable</span>
+                      <input value={eqParams.base} onChange={(e) => updateEqParam("base", e.target.value)} style={{ fontSize: "0.8rem", padding: "4px 8px" }} />
+                    </label>
+                    <label style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <span style={{ fontSize: "0.74rem", color: "var(--text-secondary)" }}>Exponent (Power)</span>
+                      <input value={eqParams.exponent} onChange={(e) => updateEqParam("exponent", e.target.value)} style={{ fontSize: "0.8rem", padding: "4px 8px" }} />
+                    </label>
+                  </>
+                )}
+                {eqTemplate === "root" && (
+                  <>
+                    <label style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <span style={{ fontSize: "0.74rem", color: "var(--text-secondary)" }}>Term (Under Root)</span>
+                      <input value={eqParams.term} onChange={(e) => updateEqParam("term", e.target.value)} style={{ fontSize: "0.8rem", padding: "4px 8px" }} />
+                    </label>
+                    <label style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <span style={{ fontSize: "0.74rem", color: "var(--text-secondary)" }}>Degree (e.g. 2, 3)</span>
+                      <input value={eqParams.exponent} onChange={(e) => updateEqParam("exponent", e.target.value)} style={{ fontSize: "0.8rem", padding: "4px 8px" }} />
+                    </label>
+                  </>
+                )}
+                {eqTemplate === "sum" && (
+                  <>
+                    <label style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <span style={{ fontSize: "0.74rem", color: "var(--text-secondary)" }}>Lower Bound (e.g. i=0)</span>
+                      <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                        <input value={eqParams.base} onChange={(e) => updateEqParam("base", e.target.value)} placeholder="var" style={{ width: "40px", fontSize: "0.8rem", padding: "4px" }} />
+                        <span style={{ fontSize: "0.75rem" }}>=</span>
+                        <input value={eqParams.lower} onChange={(e) => updateEqParam("lower", e.target.value)} placeholder="0" style={{ flexGrow: 1, fontSize: "0.8rem", padding: "4px 8px" }} />
+                      </div>
+                    </label>
+                    <label style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <span style={{ fontSize: "0.74rem", color: "var(--text-secondary)" }}>Upper Limit (Top)</span>
+                      <input value={eqParams.upper} onChange={(e) => updateEqParam("upper", e.target.value)} style={{ fontSize: "0.8rem", padding: "4px 8px" }} />
+                    </label>
+                    <label style={{ display: "flex", flexDirection: "column", gap: "2px", gridColumn: "span 2", marginTop: "4px" }}>
+                      <span style={{ fontSize: "0.74rem", color: "var(--text-secondary)" }}>Summation Expression (Body)</span>
+                      <input value={eqParams.body} onChange={(e) => updateEqParam("body", e.target.value)} placeholder="e.g. x_i" style={{ fontSize: "0.8rem", padding: "4px 8px" }} />
+                    </label>
+                  </>
+                )}
+                {eqTemplate === "integral" && (
+                  <>
+                    <label style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <span style={{ fontSize: "0.74rem", color: "var(--text-secondary)" }}>Limits (Lower & Upper)</span>
+                      <div style={{ display: "flex", gap: "4px" }}>
+                        <input value={eqParams.lower} onChange={(e) => updateEqParam("lower", e.target.value)} placeholder="lower" style={{ flexGrow: 1, fontSize: "0.8rem", padding: "4px 6px" }} />
+                        <input value={eqParams.upper} onChange={(e) => updateEqParam("upper", e.target.value)} placeholder="upper" style={{ flexGrow: 1, fontSize: "0.8rem", padding: "4px 6px" }} />
+                      </div>
+                    </label>
+                    <label style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <span style={{ fontSize: "0.74rem", color: "var(--text-secondary)" }}>Integration Variable</span>
+                      <input value={eqParams.term} onChange={(e) => updateEqParam("term", e.target.value)} placeholder="x" style={{ fontSize: "0.8rem", padding: "4px 8px" }} />
+                    </label>
+                    <label style={{ display: "flex", flexDirection: "column", gap: "2px", gridColumn: "span 2", marginTop: "4px" }}>
+                      <span style={{ fontSize: "0.74rem", color: "var(--text-secondary)" }}>Integrand Function (Body)</span>
+                      <input value={eqParams.body} onChange={(e) => updateEqParam("body", e.target.value)} placeholder="e.g. f(x)" style={{ fontSize: "0.8rem", padding: "4px 8px" }} />
+                    </label>
+                  </>
+                )}
+                {eqTemplate === "matrix" && (
+                  <label style={{ display: "flex", flexDirection: "column", gap: "2px", gridColumn: "span 2" }}>
+                    <span style={{ fontSize: "0.74rem", color: "var(--text-secondary)" }}>Matrix Content (use & for columns, \\ for rows)</span>
+                    <input value={eqParams.matrixRows} onChange={(e) => updateEqParam("matrixRows", e.target.value)} style={{ fontSize: "0.8rem", padding: "4px 8px", fontFamily: "'Fira Code', Courier, monospace" }} />
+                  </label>
+                )}
+              </div>
+
+              {/* Math WYSIWYG & Output Box */}
+              <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "8px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "10px", marginBottom: "10px" }}>
+                {/* Visual Preview */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "#ffffff", color: "#1e293b", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "8px", minHeight: "60px", userSelect: "none" }}>
+                  {eqTemplate === "fraction" && (
+                    <div style={{ display: "inline-flex", flexDirection: "column", alignSelf: "center", alignItems: "center", fontSize: "0.85rem", verticalAlign: "middle" }}>
+                      <span style={{ borderBottom: "1.5px solid #1e293b", padding: "0 4px", fontWeight: "600" }}>{eqParams.numerator || "a"}</span>
+                      <span style={{ padding: "0 4px", fontWeight: "600" }}>{eqParams.denominator || "b"}</span>
+                    </div>
+                  )}
+                  {eqTemplate === "power" && (
+                    <span style={{ fontSize: "0.95rem", fontWeight: "600" }}>
+                      {eqParams.base || "x"}
+                      <sup style={{ fontSize: "0.65em", verticalAlign: "super", marginLeft: "1px" }}>{eqParams.exponent || "n"}</sup>
+                    </span>
+                  )}
+                  {eqTemplate === "root" && (
+                    <span style={{ display: "inline-flex", alignItems: "center", fontSize: "0.88rem" }}>
+                      <sup style={{ fontSize: "0.55em", marginRight: "-3px", verticalAlign: "super", fontWeight: "700" }}>{eqParams.exponent || "2"}</sup>
+                      <span style={{ fontSize: "1.2rem", marginRight: "-1px" }}>√</span>
+                      <span style={{ borderTop: "1.5px solid #1e293b", paddingTop: "1px", paddingLeft: "2px", fontWeight: "600" }}>{eqParams.term || "x"}</span>
+                    </span>
+                  )}
+                  {eqTemplate === "sum" && (
+                    <div style={{ display: "inline-flex", alignItems: "center" }}>
+                      <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", verticalAlign: "middle", fontSize: "0.82rem" }}>
+                        <span style={{ fontSize: "0.58em", lineHeight: "1", fontWeight: "700" }}>{eqParams.upper || "n"}</span>
+                        <span style={{ fontSize: "1.2rem", lineHeight: "1.1", fontWeight: "600", margin: "1px 0" }}>∑</span>
+                        <span style={{ fontSize: "0.58em", lineHeight: "1", fontWeight: "700" }}>{eqParams.base || "i"}={eqParams.lower || "1"}</span>
+                      </div>
+                      <span style={{ marginLeft: "4px", fontSize: "0.82rem", fontWeight: "600" }}>{eqParams.body || "x_i"}</span>
+                    </div>
+                  )}
+                  {eqTemplate === "integral" && (
+                    <div style={{ display: "inline-flex", alignItems: "center" }}>
+                      <span style={{ fontSize: "1.4rem", lineHeight: "1", marginRight: "1px", position: "relative" }}>
+                        ∫
+                        <span style={{ position: "absolute", top: "-4px", left: "6px", fontSize: "0.45em", fontWeight: "700" }}>{eqParams.upper || "b"}</span>
+                        <span style={{ position: "absolute", bottom: "-6px", left: "2px", fontSize: "0.45em", fontWeight: "700" }}>{eqParams.lower || "a"}</span>
+                      </span>
+                      <span style={{ marginLeft: "8px", fontSize: "0.82rem", fontWeight: "600" }}>{eqParams.body || "f(x)"} d{eqParams.term || "x"}</span>
+                    </div>
+                  )}
+                  {eqTemplate === "matrix" && (
+                    <span style={{ display: "inline-flex", alignItems: "center", fontSize: "0.82rem", fontWeight: "600" }}>
+                      <span style={{ fontSize: "1.4rem", fontWeight: "200", marginRight: "3px" }}>(</span>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, auto)", gap: "2px 6px", textAlign: "center" }}>
+                        {(() => {
+                          let rows = [];
+                          try {
+                            rows = eqParams.matrixRows.split("\\\\").map(r => r.split("&").map(c => c.trim()));
+                          } catch {
+                            rows = [["1", "2"], ["3", "4"]];
+                          }
+                          return rows.map((row, rI) => 
+                            row.map((cell, cI) => (
+                              <span key={`${rI}-${cI}`}>{cell || "·"}</span>
+                            ))
+                          );
+                        })()}
+                      </div>
+                      <span style={{ fontSize: "1.4rem", fontWeight: "200", marginLeft: "3px" }}>)</span>
+                    </span>
+                  )}
+                </div>
+                
+                {/* Text output */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <span style={{ fontSize: "0.7rem", color: "var(--text-secondary)" }}>Generated LaTeX Math Code:</span>
+                  <input
+                    readOnly
+                    value={compiledEquation}
+                    style={{ fontFamily: "'Fira Code', Courier, monospace", fontSize: "0.8rem", padding: "6px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "4px", color: "var(--text-accent)" }}
+                    onClick={(e) => e.target.select()}
+                  />
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => copyText(compiledEquation, "LaTeX math formula copied!")}
+                  style={{ fontSize: "0.78rem" }}
+                >
+                  Copy Equation Code
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setEqParams({
+                      numerator: "a",
+                      denominator: "b",
+                      base: "x",
+                      exponent: "n",
+                      term: "x",
+                      lower: "0",
+                      upper: "n",
+                      body: "x_i",
+                      matrixRows: "1 & 2\\\\3 & 4"
+                    });
+                  }}
+                  style={{ fontSize: "0.78rem", background: "transparent", border: "1px solid var(--border-subtle)" }}
+                >
+                  Reset Template
+                </Button>
+              </div>
+            </div>
+
             {/* LaTeX Symbol & Formula Sheet */}
             <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "16px", marginTop: "12px" }}>
               <span style={{ display: "block", fontSize: "0.76rem", fontWeight: "700", marginBottom: "4px", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.07rem" }}>LaTeX Equation & Greek Symbol Panel</span>
@@ -4927,7 +5236,93 @@ function EditorForm({
           </div>
         )}
       </div>
+
+      {/* Submission Readiness Checklist */}
+      <div className={`accordion-item ${activeSection === "readiness-checklist" ? "active" : ""}`}>
+        <button type="button" className="accordion-header" onClick={() => toggleSection("readiness-checklist")}>
+          <span className="accordion-title-wrapper">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+            <span>Submission Readiness Checklist</span>
+          </span>
+          <svg className="accordion-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+        </button>
+        {activeSection === "readiness-checklist" && (() => {
+          const items = getChecklistItems(formData.departmentPreset);
+          const checkedCount = items.filter(item => checklistChecked[item.id]).length;
+          const pct = items.length > 0 ? Math.round((checkedCount / items.length) * 100) : 0;
+          
+          let readinessBadge = "Incomplete";
+          let badgeColor = "#ef4444";
+          if (pct === 100) {
+            readinessBadge = "Ready for Submission!";
+            badgeColor = "#10b981";
+          } else if (pct >= 50) {
+            readinessBadge = "Drafting Review";
+            badgeColor = "#f59e0b";
+          }
+
+          return (
+            <div className="accordion-content">
+              <p style={{ margin: 0, color: "var(--text-muted)", fontSize: "0.82rem", lineHeight: 1.5, marginBottom: "10px" }}>
+                Verify your report content against department criteria to ensure standard lab submission compliance.
+              </p>
+
+              {/* Progress gauge */}
+              <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "12px", marginBottom: "12px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                  <span style={{ fontSize: "0.78rem", fontWeight: "700", color: "var(--text-accent)" }}>Readiness Progress</span>
+                  <Badge style={{ background: badgeColor, color: "#ffffff", fontSize: "0.74rem" }}>{readinessBadge}</Badge>
+                </div>
+                <div style={{ height: "8px", background: "rgba(255,255,255,0.06)", borderRadius: "99px", overflow: "hidden", marginBottom: "6px" }}>
+                  <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? "#10b981" : pct >= 50 ? "#f59e0b" : "#ef4444", borderRadius: "99px", transition: "width 0.3s ease" }} />
+                </div>
+                <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>{checkedCount} of {items.length} requirements met ({pct}%)</span>
+              </div>
+
+              {/* Items checklist */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {items.map((item) => (
+                  <label
+                    key={item.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "8px",
+                      padding: "8px 10px",
+                      background: "var(--bg-elevated)",
+                      border: "1px solid var(--border-subtle)",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontSize: "0.78rem",
+                      color: checklistChecked[item.id] ? "var(--text-secondary)" : "var(--text-primary)",
+                      textDecoration: checklistChecked[item.id] ? "line-through" : "none",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!checklistChecked[item.id]}
+                      onChange={(e) => {
+                        setChecklistChecked(prev => ({
+                          ...prev,
+                          [item.id]: e.target.checked
+                        }));
+                      }}
+                      style={{ marginTop: "2px", cursor: "pointer" }}
+                    />
+                    <span>{item.text}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+      </div>
     </form>
+
   );
 }
 
