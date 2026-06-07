@@ -3464,7 +3464,7 @@ async function askGemini(prompt, apiKey) {
     throw new Error("Please enter your Gemini API Key in the AI Assistant section first.");
   }
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${finalKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${finalKey}`,
     {
       method: "POST",
       headers: {
