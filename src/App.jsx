@@ -3889,7 +3889,8 @@ function App() {
         const existingIds = new Set(profiles.map(p => p.id));
         const newProfiles = validated.map(item => {
           if (existingIds.has(item.id) || !item.id) {
-            item.id = (Date.now() + Math.floor(Math.random() * 1000)).toString();
+            const randomSuffix = window.crypto.getRandomValues(new Uint32Array(1))[0] % 1000;
+            item.id = (Date.now() + randomSuffix).toString();
           }
           return item;
         });
