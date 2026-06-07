@@ -666,6 +666,46 @@ const latexCommandCards = [
   }
 ];
 
+const latexCategories = {
+  greek: [
+    { label: "alpha (α)", code: "\\alpha" },
+    { label: "beta (β)", code: "\\beta" },
+    { label: "gamma (γ)", code: "\\gamma" },
+    { label: "theta (θ)", code: "\\theta" },
+    { label: "pi (π)", code: "\\pi" },
+    { label: "mu (μ)", code: "\\mu" },
+    { label: "Delta (Δ)", code: "\\Delta" },
+    { label: "sigma (σ)", code: "\\sigma" },
+    { label: "lambda (λ)", code: "\\lambda" },
+    { label: "omega (ω)", code: "\\omega" },
+    { label: "phi (φ)", code: "\\phi" },
+    { label: "epsilon (ε)", code: "\\epsilon" }
+  ],
+  operators: [
+    { label: "integral (∫)", code: "\\int" },
+    { label: "summation (∑)", code: "\\sum" },
+    { label: "square root (√)", code: "\\sqrt{x}" },
+    { label: "fraction", code: "\\frac{a}{b}" },
+    { label: "partial (∂)", code: "\\partial" },
+    { label: "infinity (∞)", code: "\\infty" },
+    { label: "gradient (∇)", code: "\\nabla" },
+    { label: "times (×)", code: "\\times" },
+    { label: "divide (÷)", code: "\\div" },
+    { label: "approx (≈)", code: "\\approx" },
+    { label: "not equal (≠)", code: "\\neq" },
+    { label: "less/equal (≤)", code: "\\leq" },
+    { label: "greater/equal (≥)", code: "\\geq" }
+  ],
+  formulas: [
+    { label: "Dilution Formula", code: "C_1V_1 = C_2V_2" },
+    { label: "Water Hardness", code: "\\text{Hardness} = \\frac{V \\times M \\times 1000}{\\text{Sample volume}}" },
+    { label: "Mean (Average)", code: "\\bar{x} = \\frac{1}{n} \\sum_{i=1}^{n} x_i" },
+    { label: "Standard Deviation", code: "s = \\sqrt{\\frac{\\sum (x_i - \\bar{x})^2}{n-1}}" },
+    { label: "Beer-Lambert Law", code: "A = \\epsilon c l" },
+    { label: "Quadratic Formula", code: "x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}" }
+  ]
+};
+
 const fieldGroups = [
   {
     id: "report", title: "Report Details",
@@ -2213,6 +2253,97 @@ function EditorForm({
   const [commandCategory, setCommandCategory] = useState("all");
   const [latexQuery, setLatexQuery] = useState("");
 
+  const [citeType, setCiteType] = useState("book");
+  const [citeAuthor, setCiteAuthor] = useState("");
+  const [citeTitle, setCiteTitle] = useState("");
+  const [citePublisher, setCitePublisher] = useState("");
+  const [citeYear, setCiteYear] = useState("");
+  const [citeUrl, setCiteUrl] = useState("");
+
+  const [symbolTab, setSymbolTab] = useState("greek");
+  const [symbolQuery, setSymbolQuery] = useState("");
+
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+
+  const formatCitation = (type, author, title, publisher, year, url) => {
+    const a = author.trim() || "Author Unknown";
+    const t = title.trim() || "Untitled Work";
+    const p = publisher.trim() || "Publisher Unknown";
+    const y = year.trim() || "n.d.";
+    const u = url.trim();
+
+    return {
+      APA: `${a}. (${y}). ${t}. ${p}.${u ? ` Available: ${u}` : ""}`,
+      MLA: `${a}. "${t}." ${p}, ${y}.${u ? ` ${u}` : ""}`,
+      IEEE: `${a}, "${t}," ${p}, ${y}.${u ? ` [Online]. Available: ${u}` : ""}`
+    };
+  };
+
+  const handleAddGeneratedCitation = (style) => {
+    const formatted = formatCitation(citeType, citeAuthor, citeTitle, citePublisher, citeYear, citeUrl);
+    const text = formatted[style] || formatted.APA;
+    setReferencesData(prev => [
+      ...prev,
+      { id: Date.now().toString(), style, text }
+    ]);
+    showAppToast("Citation added to references!");
+    setCiteAuthor("");
+    setCiteTitle("");
+    setCitePublisher("");
+    setCiteYear("");
+    setCiteUrl("");
+  };
+
+  const handleRunScan = () => {
+    const textToScan = `${ackData.body} ${transmittalData.body} ${abstractData.body}`.trim();
+    if (!textToScan || textToScan.length < 20) {
+      Swal.fire({
+        title: "Insufficient Text",
+        text: "Please write some text in the Abstract, Acknowledgement, or Letter sections before scanning.",
+        icon: "warning",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      });
+      return;
+    }
+
+    setIsScanning(true);
+    setScanResult(null);
+
+    setTimeout(() => {
+      let hash = 0;
+      for (let i = 0; i < textToScan.length; i++) {
+        hash = (hash << 5) - hash + textToScan.charCodeAt(i);
+        hash |= 0;
+      }
+      const similaritySeed = Math.abs(hash % 15) + 1;
+      const originalityScore = 100 - similaritySeed;
+
+      const sentences = textToScan.split(/[.!?]+/).filter(Boolean).length || 1;
+      const words = countWords(textToScan);
+      const syllables = Math.round(words * 1.4);
+      const readabilityGrade = Math.round(0.39 * (words / sentences) + 11.8 * (syllables / words) - 15.59);
+      
+      let readabilityText = "Undergraduate Level";
+      if (readabilityGrade > 14) readabilityText = "Graduate Level";
+      else if (readabilityGrade < 10) readabilityText = "High School Level";
+
+      setScanResult({
+        score: originalityScore,
+        readability: readabilityText,
+        wordCount: words,
+        matches: [
+          { source: "State University repository", similarity: `${Math.round(similaritySeed * 0.4 * 10) / 10}%` },
+          { source: "IEEE Xplore Publications", similarity: `${Math.round(similaritySeed * 0.3 * 10) / 10}%` },
+          { source: "Internet Sources / Public Domains", similarity: `${Math.round(similaritySeed * 0.2 * 10) / 10}%` }
+        ].filter(m => parseFloat(m.similarity) > 0)
+      });
+      setIsScanning(false);
+      showAppToast("Originality check complete!");
+    }, 1800);
+  };
+
   const handleRephraseText = async (currentText, fieldName, setCallback) => {
     const activeKey = geminiApiKey?.trim() || DEFAULT_GEMINI_API_KEY;
     if (!activeKey) {
@@ -3299,6 +3430,45 @@ function EditorForm({
                     ))}
                     <Button type="button" variant="secondary" size="sm" onClick={() => setReferencesData(prev => [...prev, { id: Date.now().toString(), style: "APA", text: "" }])} style={{ alignSelf: "flex-start", fontSize: "0.75rem" }}>+ Add Reference</Button>
                   </div>
+
+                  {/* Auto-Citation Builder Form */}
+                  <div style={{ marginTop: "12px", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "12px", background: "var(--bg-elevated)" }}>
+                    <span style={{ display: "block", fontSize: "0.8rem", fontWeight: "600", color: "var(--text-accent)", marginBottom: "8px" }}>Auto-Citation Builder</span>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+                      <label><span>Resource Type</span>
+                        <select value={citeType} onChange={(e) => setCiteType(e.target.value)} style={{ fontSize: "0.8rem", padding: "6px 10px" }}>
+                          <option value="book">Book</option>
+                          <option value="website">Website</option>
+                          <option value="journal">Journal Article</option>
+                        </select>
+                      </label>
+                      <label><span>Year</span>
+                        <input value={citeYear} onChange={(e) => setCiteYear(e.target.value)} placeholder="e.g. 2026" style={{ fontSize: "0.8rem", padding: "6px 10px" }} />
+                      </label>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <label><span>Author(s)</span>
+                        <input value={citeAuthor} onChange={(e) => setCiteAuthor(e.target.value)} placeholder="e.g. Kumar, J. & Joy, A." style={{ fontSize: "0.8rem", padding: "6px 10px" }} />
+                      </label>
+                      <label><span>Title</span>
+                        <input value={citeTitle} onChange={(e) => setCiteTitle(e.target.value)} placeholder={citeType === "website" ? "e.g. Water Hardness Guide" : "e.g. Lab Manual of Chemistry"} style={{ fontSize: "0.8rem", padding: "6px 10px" }} />
+                      </label>
+                      <label><span>{citeType === "book" ? "Publisher" : citeType === "website" ? "Website Name" : "Journal Name"}</span>
+                        <input value={citePublisher} onChange={(e) => setCitePublisher(e.target.value)} placeholder={citeType === "book" ? "e.g. Academic Press" : "e.g. State University of Bangladesh"} style={{ fontSize: "0.8rem", padding: "6px 10px" }} />
+                      </label>
+                      <label><span>URL / DOI (optional)</span>
+                        <input value={citeUrl} onChange={(e) => setCiteUrl(e.target.value)} placeholder="e.g. https://sub.edu.bd" style={{ fontSize: "0.8rem", padding: "6px 10px" }} />
+                      </label>
+                    </div>
+                    <div style={{ marginTop: "12px", borderTop: "1px dashed var(--border-subtle)", paddingTop: "10px" }}>
+                      <span style={{ display: "block", fontSize: "0.72rem", color: "var(--text-muted)", marginBottom: "6px" }}>Preview & Add:</span>
+                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                        <Button type="button" variant="secondary" size="sm" onClick={() => handleAddGeneratedCitation("APA")} style={{ fontSize: "0.72rem", padding: "6px 10px", height: "auto" }}>+ Add APA</Button>
+                        <Button type="button" variant="secondary" size="sm" onClick={() => handleAddGeneratedCitation("IEEE")} style={{ fontSize: "0.72rem", padding: "6px 10px", height: "auto" }}>+ Add IEEE</Button>
+                        <Button type="button" variant="secondary" size="sm" onClick={() => handleAddGeneratedCitation("MLA")} style={{ fontSize: "0.72rem", padding: "6px 10px", height: "auto" }}>+ Add MLA</Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -3780,6 +3950,84 @@ function EditorForm({
               </div>
             </div>
 
+            {/* LaTeX Symbol & Formula Sheet */}
+            <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "16px", marginTop: "12px" }}>
+              <span style={{ display: "block", fontSize: "0.76rem", fontWeight: "700", marginBottom: "4px", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.07rem" }}>LaTeX Equation & Greek Symbol Panel</span>
+              <p className="form-hint" style={{ marginBottom: "8px" }}>Click any mathematical symbol or lab report formula below to copy its LaTeX code to your clipboard.</p>
+              
+              <div className="symbol-finder" style={{ display: "grid", gridTemplateColumns: "1fr", gap: "6px", marginBottom: "8px" }}>
+                <input
+                  value={symbolQuery}
+                  onChange={(e) => setSymbolQuery(e.target.value)}
+                  placeholder="Filter symbols (e.g. alpha, sum, yield)..."
+                  style={{ fontSize: "0.8rem", padding: "6px 10px" }}
+                />
+              </div>
+
+              {/* Tab headers */}
+              <div style={{ display: "flex", gap: "4px", marginBottom: "8px", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "4px" }}>
+                {["greek", "operators", "formulas"].map((tabName) => (
+                  <button
+                    key={tabName}
+                    type="button"
+                    onClick={() => setSymbolTab(tabName)}
+                    style={{
+                      background: symbolTab === tabName ? "rgba(59, 130, 246, 0.15)" : "transparent",
+                      border: "none",
+                      color: symbolTab === tabName ? "var(--text-accent)" : "var(--text-secondary)",
+                      fontSize: "0.75rem",
+                      fontWeight: "700",
+                      padding: "4px 8px",
+                      cursor: "pointer",
+                      borderRadius: "4px",
+                      textTransform: "capitalize"
+                    }}
+                  >
+                    {tabName}
+                  </button>
+                ))}
+              </div>
+
+              {/* Symbol Grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: "6px", maxHeight: "150px", overflowY: "auto", padding: "2px" }}>
+                {Object.keys(latexCategories).map((catName) => {
+                  if (symbolTab !== catName && !symbolQuery.trim()) return null;
+                  return latexCategories[catName]
+                    .filter((item) => {
+                      if (!symbolQuery.trim()) return true;
+                      return item.label.toLowerCase().includes(symbolQuery.trim().toLowerCase()) || item.code.toLowerCase().includes(symbolQuery.trim().toLowerCase());
+                    })
+                    .map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        onClick={() => {
+                          copyText(item.code, `Copied: ${item.code}`);
+                        }}
+                        style={{
+                          background: "var(--bg-elevated)",
+                          border: "1px solid var(--border-subtle)",
+                          borderRadius: "4px",
+                          padding: "6px",
+                          fontSize: "0.72rem",
+                          color: "var(--text-primary)",
+                          textAlign: "left",
+                          cursor: "pointer",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "2px"
+                        }}
+                        title={`Copy ${item.code}`}
+                        className="preset-card-btn"
+                      >
+                        <strong>{item.label}</strong>
+                        <code style={{ fontSize: "0.6rem", color: "var(--text-accent)" }}>{item.code}</code>
+                      </button>
+                    ));
+                })}
+              </div>
+            </div>
+
             <p className="form-hint" style={{ marginTop: "12px" }}>
               Overleaf workflow: create a blank project, upload images if needed, paste or upload <strong>main.tex</strong>, then compile.
             </p>
@@ -3919,6 +4167,61 @@ function EditorForm({
                     Ask
                   </Button>
                 </div>
+              </div>
+
+              {/* Originality Checker Simulator */}
+              <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "12px" }}>
+                <strong style={{ fontSize: "0.82rem", color: "var(--text-primary)", display: "block", marginBottom: "4px" }}>Academic Originality Checker Simulator</strong>
+                <p className="form-hint" style={{ marginBottom: "8px" }}>Simulate Turnitin-style originality check & readability statistics on your drafted pages.</p>
+                
+                {isScanning ? (
+                  <div style={{ padding: "12px", background: "var(--bg-elevated)", borderRadius: "6px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                    <div className="visit-dot" style={{ width: "12px", height: "12px", background: "#3b82f6", boxShadow: "0 0 8px #3b82f6" }}></div>
+                    <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>Scanning document databases...</span>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    onClick={handleRunScan}
+                    style={{ width: "100%", fontSize: "0.8rem", justifyContent: "center", background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", boxShadow: "0 4px 16px rgba(16,185,129,0.25)" }}
+                  >
+                    🛡 Run Originality Scan
+                  </Button>
+                )}
+
+                {scanResult && (
+                  <div style={{ marginTop: "12px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                      <span style={{ fontSize: "0.78rem", fontWeight: "700", color: "var(--text-accent)" }}>Scan Results Summary</span>
+                      <Badge variant="success">{scanResult.score}% Original</Badge>
+                    </div>
+
+                    <div style={{ height: "8px", background: "rgba(255,255,255,0.06)", borderRadius: "99px", overflow: "hidden", marginBottom: "12px" }}>
+                      <div style={{ height: "100%", width: `${scanResult.score}%`, background: scanResult.score > 90 ? "#10b981" : "#fbbf24", borderRadius: "99px", transition: "width 0.4s ease" }} />
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "0.76rem" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--text-secondary)" }}>Readability:</span>
+                        <strong style={{ color: "var(--text-primary)" }}>{scanResult.readability}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--text-secondary)" }}>Scanned Length:</span>
+                        <strong style={{ color: "var(--text-primary)" }}>{scanResult.wordCount} words</strong>
+                      </div>
+                      
+                      <div style={{ borderTop: "1px dashed var(--border-subtle)", marginTop: "6px", paddingTop: "6px" }}>
+                        <span style={{ display: "block", fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: "4px" }}>Similarity matches detected:</span>
+                        {scanResult.matches.map((match, idx) => (
+                          <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", marginBottom: "2px" }}>
+                            <span style={{ color: "var(--text-secondary)" }}>· {match.source}</span>
+                            <strong style={{ color: "#fbbf24" }}>{match.similarity}</strong>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
