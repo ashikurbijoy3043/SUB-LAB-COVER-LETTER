@@ -366,10 +366,10 @@ function isRequiredField(formData, key) {
 
 function getCourseRows(formData) {
   return [
-    [t(formData, "courseCode"), formData.courseCode, false],
-    [t(formData, "courseTitle"), formData.courseTitle, false],
-    [getExperimentNoLabel(formData), formData.experimentNo, formData.experimentNoOptional],
-    [t(formData, "experimentDate"), formData.experimentDate, true]
+    [t(formData, "courseCode"), formData.courseCode, false, "courseCode"],
+    [t(formData, "courseTitle"), formData.courseTitle, false, "courseTitle"],
+    [getExperimentNoLabel(formData), formData.experimentNo, formData.experimentNoOptional, "experimentNo"],
+    [t(formData, "experimentDate"), formData.experimentDate, true, "experimentDate"]
   ].filter(([, value, optional]) => !optional || value?.trim());
 }
 
@@ -1263,6 +1263,7 @@ function Lightbox({ children, onClose, onPrint, exportFormats, exportCover }) {
 ════════════════════════════════════ */
 function CoverPage({
   formData,
+  updateField,
   paperStyle,
   studentRows,
   is3D,
@@ -1270,7 +1271,8 @@ function CoverPage({
   selectedPage,
   showRulers,
   showGrid,
-  showGuides
+  showGuides,
+  isEditable = false
 }) {
   const bannerImageSrc = getSafeImageSrc(formData.bannerImageUrl);
   const departmentLogoSrc = getSafeImageSrc(formData.departmentLogoUrl);
@@ -1328,8 +1330,24 @@ function CoverPage({
       )}
 
       <div className="title-block" style={formData.titleAlign ? { textAlign: formData.titleAlign } : undefined}>
-        <p>{formData.reportPrefix}</p>
-        <h2>{formData.reportTitle}</h2>
+        <p
+          className="inline-editable"
+          contentEditable={isEditable}
+          suppressContentEditableWarning
+          onBlur={(e) => updateField("reportPrefix", e.target.innerText)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+        >
+          {formData.reportPrefix}
+        </p>
+        <h2
+          className="inline-editable"
+          contentEditable={isEditable}
+          suppressContentEditableWarning
+          onBlur={(e) => updateField("reportTitle", e.target.innerText)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+        >
+          {formData.reportTitle}
+        </h2>
       </div>
 
       <div className={`logos ${hasDepartmentLogo(formData) ? "" : "logos-single"}`}>
@@ -1340,8 +1358,19 @@ function CoverPage({
       </div>
 
       <div className="course-info" style={formData.courseAlign ? { textAlign: formData.courseAlign } : undefined}>
-        {getCourseRows(formData).map(([label, value]) => (
-          <p key={label}><strong>{label}:</strong> {value}</p>
+        {getCourseRows(formData).map(([label, value, , key]) => (
+          <p key={label}>
+            <strong>{label}: </strong>
+            <span
+              className="inline-editable"
+              contentEditable={isEditable}
+              suppressContentEditableWarning
+              onBlur={(e) => updateField(key, e.target.innerText)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+            >
+              {value}
+            </span>
+          </p>
         ))}
       </div>
 
@@ -1351,10 +1380,44 @@ function CoverPage({
         <div>
           <h3>{t(formData, "submittedTo")}:</h3>
           <div className="rule" />
-          <p className="person-name">{formData.teacherName}</p>
-          <p><em>{formData.teacherTitle}</em></p>
-          <p>{formData.teacherDepartment}</p>
-          <p>{formData.university}</p>
+          <p
+            className="person-name inline-editable"
+            contentEditable={isEditable}
+            suppressContentEditableWarning
+            onBlur={(e) => updateField("teacherName", e.target.innerText)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+          >
+            {formData.teacherName}
+          </p>
+          <p>
+            <em
+              className="inline-editable"
+              contentEditable={isEditable}
+              suppressContentEditableWarning
+              onBlur={(e) => updateField("teacherTitle", e.target.innerText)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+            >
+              {formData.teacherTitle}
+            </em>
+          </p>
+          <p
+            className="inline-editable"
+            contentEditable={isEditable}
+            suppressContentEditableWarning
+            onBlur={(e) => updateField("teacherDepartment", e.target.innerText)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+          >
+            {formData.teacherDepartment}
+          </p>
+          <p
+            className="inline-editable"
+            contentEditable={isEditable}
+            suppressContentEditableWarning
+            onBlur={(e) => updateField("university", e.target.innerText)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+          >
+            {formData.university}
+          </p>
         </div>
         <div>
           <h3>{t(formData, "submittedBy")}:</h3>
@@ -1372,20 +1435,47 @@ function CoverPage({
             <div className="group-submission-grid-container">
               {formData.groupStudents.map((student, idx) => {
                 const sRows = [
-                  ["Roll No.", student.roll],
-                  ["Reg. No.", student.registration],
-                  ["Status", student.status],
-                  ["Year", student.year],
-                  ["Semester", student.semester],
-                  ["Group", student.group],
-                  ["Session", student.session]
+                  ["Roll No.", student.roll, "roll"],
+                  ["Reg. No.", student.registration, "registration"],
+                  ["Status", student.status, "status"],
+                  ["Year", student.year, "year"],
+                  ["Semester", student.semester, "semester"],
+                  ["Group", student.group, "group"],
+                  ["Session", student.session, "session"]
                 ].filter(([, v]) => v && v.trim());
                 return (
                   <div className="group-student-card" key={idx}>
-                    <div className="group-student-name">{student.name || "Student Name"}</div>
+                    <div
+                      className="group-student-name inline-editable"
+                      contentEditable={isEditable}
+                      suppressContentEditableWarning
+                      onBlur={(e) => {
+                        const updated = [...formData.groupStudents];
+                        updated[idx] = { ...updated[idx], name: e.target.innerText };
+                        updateField("groupStudents", updated);
+                      }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+                    >
+                      {student.name || "Student Name"}
+                    </div>
                     <dl>
-                      {sRows.map(([label, value]) => (
-                        <div key={label}><dt>{label}:</dt><dd>{value}</dd></div>
+                      {sRows.map(([label, value, key]) => (
+                        <div key={label}>
+                          <dt>{label}:</dt>
+                          <dd
+                            className="inline-editable"
+                            contentEditable={isEditable}
+                            suppressContentEditableWarning
+                            onBlur={(e) => {
+                              const updated = [...formData.groupStudents];
+                              updated[idx] = { ...updated[idx], [key]: e.target.innerText };
+                              updateField("groupStudents", updated);
+                            }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+                          >
+                            {value}
+                          </dd>
+                        </div>
                       ))}
                     </dl>
                   </div>
@@ -1394,15 +1484,37 @@ function CoverPage({
             </div>
           ) : (
             <dl>
-              {studentRows.map(([label, value]) => (
-                <div key={label}><dt>{label}:</dt><dd>{value}</dd></div>
+              {studentRows.map(([label, value, key]) => (
+                <div key={label}>
+                  <dt>{label}:</dt>
+                  <dd
+                    className="inline-editable"
+                    contentEditable={isEditable}
+                    suppressContentEditableWarning
+                    onBlur={(e) => updateField(key, e.target.innerText)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+                  >
+                    {value}
+                  </dd>
+                </div>
               ))}
             </dl>
           )}
         </div>
       </div>
 
-      <p className="date-line"><strong>{t(formData, "dateOfSubmission")}:</strong> {formData.submissionDate}</p>
+      <p className="date-line">
+        <strong>{t(formData, "dateOfSubmission")}: </strong>
+        <span
+          className="inline-editable"
+          contentEditable={isEditable}
+          suppressContentEditableWarning
+          onBlur={(e) => updateField("submissionDate", e.target.innerText)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+        >
+          {formData.submissionDate}
+        </span>
+      </p>
 
       {formData.showQrCode && formData.qrCodeUrl && (
         <div className="cover-qr">
@@ -1415,15 +1527,31 @@ function CoverPage({
 
       <footer>
         <div className="footer-rule" />
-        <p>{formData.department}</p>
-        <p>{formData.university}</p>
+        <p
+          className="inline-editable"
+          contentEditable={isEditable}
+          suppressContentEditableWarning
+          onBlur={(e) => updateField("department", e.target.innerText)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+        >
+          {formData.department}
+        </p>
+        <p
+          className="inline-editable"
+          contentEditable={isEditable}
+          suppressContentEditableWarning
+          onBlur={(e) => updateField("university", e.target.innerText)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+        >
+          {formData.university}
+        </p>
       </footer>
       <PageNumber formData={formData} />
     </div>
   );
 }
 
-function AcknowledgementPage({ paperStyle, ackData, showRulers, showGrid, showGuides, selectedPage, cardRef, formData, pageOffset = 0 }) {
+function AcknowledgementPage({ paperStyle, ackData, setAckData, showRulers, showGrid, showGuides, selectedPage, cardRef, formData, pageOffset = 0, isEditable = false }) {
   return (
     <div className="paper" style={paperStyle} ref={cardRef}>
       <div className="paper-texture" />
@@ -1459,15 +1587,30 @@ function AcknowledgementPage({ paperStyle, ackData, showRulers, showGrid, showGu
       )}
 
       <div className="academic-page">
-        <h2 className="page-title">{ackData.title || "ACKNOWLEDGEMENT"}</h2>
-        <div className="academic-body">{ackData.body}</div>
+        <h2
+          className="page-title inline-editable"
+          contentEditable={isEditable}
+          suppressContentEditableWarning
+          onBlur={(e) => setAckData && setAckData(prev => ({ ...prev, title: e.target.innerText }))}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+        >
+          {ackData.title || "ACKNOWLEDGEMENT"}
+        </h2>
+        <div
+          className="academic-body inline-editable"
+          contentEditable={isEditable}
+          suppressContentEditableWarning
+          onBlur={(e) => setAckData && setAckData(prev => ({ ...prev, body: e.target.innerText }))}
+        >
+          {ackData.body}
+        </div>
       </div>
       <PageNumber formData={formData} offset={pageOffset} />
     </div>
   );
 }
 
-function TransmittalPage({ formData, paperStyle, transmittalData, showRulers, showGrid, showGuides, selectedPage, cardRef, pageOffset = 0 }) {
+function TransmittalPage({ formData, paperStyle, transmittalData, setTransmittalData, showRulers, showGrid, showGuides, selectedPage, cardRef, pageOffset = 0, isEditable = false }) {
   const signatureSrc = getSafeImageSrc(formData.customSignatureUrl);
 
   return (
@@ -1508,21 +1651,82 @@ function TransmittalPage({ formData, paperStyle, transmittalData, showRulers, sh
         <h2 className="page-title">LETTER OF TRANSMITTAL</h2>
         
         <div className="transmittal-header">
-          <p><strong>Date:</strong> {transmittalData.date}</p>
+          <p><strong>Date: </strong>
+            <span
+              className="inline-editable"
+              contentEditable={isEditable}
+              suppressContentEditableWarning
+              onBlur={(e) => setTransmittalData && setTransmittalData(prev => ({ ...prev, date: e.target.innerText }))}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+            >
+              {transmittalData.date}
+            </span>
+          </p>
           <p style={{ marginTop: "10px" }}><strong>To:</strong></p>
-          <p>{transmittalData.recipientName}</p>
-          <p><em>{transmittalData.recipientTitle}</em></p>
-          <p>{transmittalData.recipientDept}</p>
+          <p
+            className="inline-editable"
+            contentEditable={isEditable}
+            suppressContentEditableWarning
+            onBlur={(e) => setTransmittalData && setTransmittalData(prev => ({ ...prev, recipientName: e.target.innerText }))}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+          >
+            {transmittalData.recipientName}
+          </p>
+          <p>
+            <em
+              className="inline-editable"
+              contentEditable={isEditable}
+              suppressContentEditableWarning
+              onBlur={(e) => setTransmittalData && setTransmittalData(prev => ({ ...prev, recipientTitle: e.target.innerText }))}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+            >
+              {transmittalData.recipientTitle}
+            </em>
+          </p>
+          <p
+            className="inline-editable"
+            contentEditable={isEditable}
+            suppressContentEditableWarning
+            onBlur={(e) => setTransmittalData && setTransmittalData(prev => ({ ...prev, recipientDept: e.target.innerText }))}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+          >
+            {transmittalData.recipientDept}
+          </p>
           <p>{formData.university}</p>
         </div>
 
         <div className="transmittal-subject">
-          Subject: {transmittalData.subject}
+          Subject: 
+          <span
+            className="inline-editable"
+            contentEditable={isEditable}
+            suppressContentEditableWarning
+            onBlur={(e) => setTransmittalData && setTransmittalData(prev => ({ ...prev, subject: e.target.innerText }))}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+          >
+            {transmittalData.subject}
+          </span>
         </div>
 
         <div className="academic-body" style={{ marginTop: "10px" }}>
-          <p>{transmittalData.salutation}</p>
-          <p style={{ marginTop: "10px" }}>{transmittalData.body}</p>
+          <p
+            className="inline-editable"
+            contentEditable={isEditable}
+            suppressContentEditableWarning
+            onBlur={(e) => setTransmittalData && setTransmittalData(prev => ({ ...prev, salutation: e.target.innerText }))}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+          >
+            {transmittalData.salutation}
+          </p>
+          <p
+            className="inline-editable"
+            contentEditable={isEditable}
+            suppressContentEditableWarning
+            onBlur={(e) => setTransmittalData && setTransmittalData(prev => ({ ...prev, body: e.target.innerText }))}
+            style={{ marginTop: "10px" }}
+          >
+            {transmittalData.body}
+          </p>
         </div>
 
         <div className="signature-block">
@@ -1611,7 +1815,7 @@ function TocPage({ paperStyle, tocData, showRulers, showGrid, showGuides, select
 }
 
 /* ═══ ABSTRACT PAGE ═══ */
-function AbstractPage({ paperStyle, showRulers, showGrid, showGuides, selectedPage, cardRef, abstractData, formData, pageOffset = 0 }) {
+function AbstractPage({ paperStyle, showRulers, showGrid, showGuides, selectedPage, cardRef, abstractData, setAbstractData, formData, pageOffset = 0, isEditable = false }) {
   const wordCount = (abstractData?.body || "").trim().split(/\s+/).filter(Boolean).length;
   return (
     <div className="paper" style={paperStyle} ref={cardRef}>
@@ -1635,14 +1839,37 @@ function AbstractPage({ paperStyle, showRulers, showGrid, showGuides, selectedPa
         </>
       )}
       <div className="academic-page" id="page-abstract">
-        <h2 className="page-title">{abstractData?.title || "ABSTRACT"}</h2>
-        <div style={{ lineHeight: "1.9", fontSize: "0.97em", textAlign: "justify", marginBottom: "24px" }}>
+        <h2
+          className="page-title inline-editable"
+          contentEditable={isEditable}
+          suppressContentEditableWarning
+          onBlur={(e) => setAbstractData && setAbstractData(prev => ({ ...prev, title: e.target.innerText }))}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+        >
+          {abstractData?.title || "ABSTRACT"}
+        </h2>
+        <div
+          className="inline-editable"
+          contentEditable={isEditable}
+          suppressContentEditableWarning
+          onBlur={(e) => setAbstractData && setAbstractData(prev => ({ ...prev, body: e.target.innerText }))}
+          style={{ lineHeight: "1.9", fontSize: "0.97em", textAlign: "justify", marginBottom: "24px" }}
+        >
           {abstractData?.body || "Write your abstract here. Provide a concise summary of the experiment, methodology, key results, and conclusions."}
         </div>
         {abstractData?.keywords && (
           <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid var(--accent-color-dim, rgba(30,58,95,0.25))" }}>
             <strong style={{ color: "var(--accent-color, #1e3a5f)" }}>Keywords: </strong>
-            <span style={{ fontStyle: "italic" }}>{abstractData.keywords}</span>
+            <span
+              className="inline-editable"
+              contentEditable={isEditable}
+              suppressContentEditableWarning
+              onBlur={(e) => setAbstractData && setAbstractData(prev => ({ ...prev, keywords: e.target.innerText }))}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+              style={{ fontStyle: "italic" }}
+            >
+              {abstractData.keywords}
+            </span>
           </div>
         )}
         <div style={{ marginTop: "12px", fontSize: "0.78em", color: "#888", textAlign: "right" }}>{wordCount} words</div>
@@ -1883,6 +2110,53 @@ function RubricPage({ paperStyle, showRulers, showGrid, showGuides, selectedPage
    EDITOR FORM  — proper named component
    so React correctly re-renders on state
 ════════════════════════════════════ */
+function compileCsvToLatex(csvText) {
+  if (!csvText?.trim()) return "";
+  const lines = csvText.trim().split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  if (lines.length === 0) return "";
+
+  let delimiter = "\t";
+  if (lines[0].includes("\t")) {
+    delimiter = "\t";
+  } else if (lines[0].includes(",")) {
+    delimiter = ",";
+  } else if (lines[0].includes(";")) {
+    delimiter = ";";
+  } else {
+    delimiter = /\s{2,}/;
+  }
+
+  const rows = lines.map(line => {
+    if (delimiter instanceof RegExp) {
+      return line.split(delimiter).map(cell => cell.trim());
+    }
+    return line.split(delimiter).map(cell => cell.trim());
+  });
+
+  const colCount = Math.max(...rows.map(r => r.length));
+  if (colCount === 0) return "";
+
+  const alignment = "l".repeat(colCount);
+
+  let output = `\\begin{table}[H]\n    \\centering\n    \\caption{Data Table}\n    \\label{tab:excel_import}\n    \\begin{tabular}{${alignment}}\n        \\toprule\n`;
+
+  rows.forEach((row, rowIndex) => {
+    const paddedRow = [...row];
+    while (paddedRow.length < colCount) {
+      paddedRow.push("");
+    }
+    const escapedRow = paddedRow.map(cell => escapeLatex(cell)).join(" & ");
+    output += `        ${escapedRow} \\\\ \n`;
+
+    if (rowIndex === 0) {
+      output += "        \\midrule\n";
+    }
+  });
+
+  output += `        \\bottomrule\n    \\end{tabular}\n\\end{table}`;
+  return output;
+}
+
 function EditorForm({
   formData,
   activeSection,
@@ -1938,6 +2212,77 @@ function EditorForm({
   const [commandQuery, setCommandQuery] = useState("");
   const [commandCategory, setCommandCategory] = useState("all");
   const [latexQuery, setLatexQuery] = useState("");
+
+  const handleRephraseText = async (currentText, fieldName, setCallback) => {
+    const activeKey = geminiApiKey?.trim() || DEFAULT_GEMINI_API_KEY;
+    if (!activeKey) {
+      Swal.fire({
+        title: "API Key Required",
+        html: `Please enter a Google Gemini API Key in the AI Assistant section first.<br/><br/><a href="https://aistudio.google.com/" target="_blank" rel="noreferrer" style="color:#3b82f6;text-decoration:underline;">Get a free API key here ↗</a>`,
+        icon: "warning",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      });
+      return;
+    }
+
+    if (!currentText?.trim()) {
+      Swal.fire({
+        title: "No Text to Improve",
+        text: "Please write some text in the section first.",
+        icon: "warning",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      });
+      return;
+    }
+
+    Swal.fire({
+      title: "Enhancing Text...",
+      text: "Gemini is rephrasing your section to be formally academic...",
+      allowOutsideClick: false,
+      showConfirmButton: false,
+      background: "#0f172a",
+      color: "#e8f0ff",
+      didOpen: () => Swal.showLoading()
+    });
+
+    try {
+      const prompt = `You are a professional academic editor. Rewrite this draft section of a lab report/letter to improve its academic tone, clarity, and grammatical precision. Keep it to approximately the same length and maintain all original meaning and numbers/details. Use professional university language. Return ONLY the rewritten text, with no introduction, conclusion, or conversational response.\n\nText to improve:\n"${currentText}"`;
+      const result = await askGemini(prompt, activeKey);
+      Swal.close();
+
+      Swal.fire({
+        title: `Suggested ${fieldName}`,
+        html: `
+          <div style="text-align:left;">
+            <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:8px;">Review suggestion and click apply:</p>
+            <textarea id="swal-improved-text" style="width:100%;height:150px;background:#1e293b;border:1px solid #334155;border-radius:6px;color:#f8fafc;padding:10px;font-family:inherit;font-size:0.88rem;resize:vertical;">${result.trim()}</textarea>
+          </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: "Apply Changes",
+        cancelButtonText: "Cancel",
+        confirmButtonColor: "#2563eb",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      }).then((choice) => {
+        if (choice.isConfirmed) {
+          const refinedVal = document.getElementById("swal-improved-text").value;
+          setCallback(refinedVal);
+          showAppToast(`${fieldName} updated!`);
+        }
+      });
+    } catch (err) {
+      Swal.fire({
+        title: "Enhancement Failed",
+        text: err.message || "An error occurred.",
+        icon: "error",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      });
+    }
+  };
 
   const handleRefineTitle = async () => {
     const activeKey = geminiApiKey?.trim() || DEFAULT_GEMINI_API_KEY;
@@ -2375,6 +2720,42 @@ function EditorForm({
         </button>
         {activeSection === "layouts" && (
           <div className="accordion-content">
+            <div>
+              <span style={{ display: "block", fontSize: "0.76rem", fontWeight: "700", marginBottom: "8px", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.07rem" }}>Academic Template Gallery</span>
+              <div className="template-presets-grid">
+                {[
+                  { name: "IEEE Style", id: "ieee", theme: "minimalist", accent: "#00629b", font: "times", pattern: "none", desc: "Formal Engineering" },
+                  { name: "Cyberpunk Tech", id: "cyberpunk", theme: "tech-grid", accent: "#06b6d4", font: "firacode", pattern: "dots", desc: "Modern Hacker Theme" },
+                  { name: "Harvard Classic", id: "harvard", theme: "classic", accent: "#a51c30", font: "georgia", pattern: "none", desc: "Ivy League Style" },
+                  { name: "Modern Executive", id: "executive", theme: "executive-stripe", accent: "#1e3a5f", font: "outfit", pattern: "none", desc: "Sleek Corporate" },
+                  { name: "Minimalist Clean", id: "minimalist_clean", theme: "modern-minimal", accent: "#0f172a", font: "inter", pattern: "none", desc: "Minimal Accent" }
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="preset-card-btn"
+                    onClick={() => {
+                      updateField("layoutTheme", p.theme);
+                      updateField("accentColor", p.accent);
+                      updateField("fontFamily", p.font);
+                      updateField("headingFont", p.font);
+                      updateField("bodyFont", p.font);
+                      updateField("bgPattern", p.pattern);
+                      showAppToast(`Applied ${p.name}!`);
+                    }}
+                    style={{
+                      borderLeft: `4px solid ${p.accent}`,
+                      background: "var(--bg-elevated)",
+                      color: "var(--text-primary)"
+                    }}
+                  >
+                    <strong>{p.name}</strong>
+                    <span>{p.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <label><span>Cover Page Theme</span>
               <select value={formData.layoutTheme} onChange={(e) => updateField("layoutTheme", e.target.value)}>
                 <option value="classic">Classic (Standard Border & watermark)</option>
@@ -2684,7 +3065,18 @@ function EditorForm({
                   <label><span>Page Title</span>
                     <input value={ackData.title} onChange={(e) => setAckData(prev => ({ ...prev, title: e.target.value }))} />
                   </label>
-                  <label><span>Acknowledgement Body <small style={{ color: getCounterTone(countWords(ackData.body), 140) }}>{countWords(ackData.body)}/140 words</small></span>
+                  <label>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <span>Acknowledgement Body <small style={{ color: getCounterTone(countWords(ackData.body), 140) }}>{countWords(ackData.body)}/140 words</small></span>
+                      <button
+                        type="button"
+                        className="text-enhance-btn"
+                        onClick={() => handleRephraseText(ackData.body, "Acknowledgement", (val) => setAckData(prev => ({ ...prev, body: val })))}
+                        title="Improve academic tone with Gemini AI"
+                      >
+                        ✨ Academic Tone
+                      </button>
+                    </div>
                     <textarea value={ackData.body} onChange={(e) => setAckData(prev => ({ ...prev, body: e.target.value }))} rows="4" />
                   </label>
                 </div>
@@ -2718,7 +3110,18 @@ function EditorForm({
                       <input value={transmittalData.salutation} onChange={(e) => setTransmittalData(prev => ({ ...prev, salutation: e.target.value }))} />
                     </label>
                   </div>
-                  <label><span>Letter Body <small style={{ color: getCounterTone(countWords(transmittalData.body), 160) }}>{countWords(transmittalData.body)}/160 words</small></span>
+                  <label>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <span>Letter Body <small style={{ color: getCounterTone(countWords(transmittalData.body), 160) }}>{countWords(transmittalData.body)}/160 words</small></span>
+                      <button
+                        type="button"
+                        className="text-enhance-btn"
+                        onClick={() => handleRephraseText(transmittalData.body, "Letter of Transmittal", (val) => setTransmittalData(prev => ({ ...prev, body: val })))}
+                        title="Improve academic tone with Gemini AI"
+                      >
+                        ✨ Academic Tone
+                      </button>
+                    </div>
                     <textarea value={transmittalData.body} onChange={(e) => setTransmittalData(prev => ({ ...prev, body: e.target.value }))} rows="4" />
                   </label>
                   <label><span>Sign-off Text</span>
@@ -2857,7 +3260,17 @@ function EditorForm({
                     <input value={abstractData.title} onChange={(e) => setAbstractData(prev => ({ ...prev, title: e.target.value }))} />
                   </label>
                   <label style={{ marginTop: "8px", display: "block" }}>
-                    <span>Abstract Body <small style={{ color: getCounterTone(countWords(abstractData.body), 220) }}>{countWords(abstractData.body)}/220 words</small></span>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <span>Abstract Body <small style={{ color: getCounterTone(countWords(abstractData.body), 220) }}>{countWords(abstractData.body)}/220 words</small></span>
+                      <button
+                        type="button"
+                        className="text-enhance-btn"
+                        onClick={() => handleRephraseText(abstractData.body, "Abstract", (val) => setAbstractData(prev => ({ ...prev, body: val })))}
+                        title="Improve academic tone with Gemini AI"
+                      >
+                        ✨ Academic Tone
+                      </button>
+                    </div>
                     <textarea value={abstractData.body} onChange={(e) => setAbstractData(prev => ({ ...prev, body: e.target.value }))} rows="5" placeholder="Write a concise summary of your experiment, methodology, and key findings..." />
                   </label>
                   <label style={{ marginTop: "8px", display: "block" }}><span>Keywords (comma-separated)</span>
@@ -3305,7 +3718,69 @@ function EditorForm({
               )}
             </div>
 
-            <p className="form-hint">
+            {/* LaTeX Table Generator */}
+            <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "16px", marginTop: "12px" }}>
+              <span style={{ display: "block", fontSize: "0.76rem", fontWeight: "700", marginBottom: "4px", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.07rem" }}>Excel / CSV to LaTeX Table Generator</span>
+              <p className="form-hint" style={{ marginBottom: "8px" }}>Paste cells directly from Excel/Sheets or write CSV data here to instantly compile into a LaTeX table.</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <textarea
+                  id="latex-table-csv-input"
+                  placeholder="Parameter&#9;Value&#9;Unit&#10;Hardness&#9;25&#9;mg/L&#10;Calcium&#9;15&#9;mg/L"
+                  rows="4"
+                  onChange={(e) => {
+                    const compiled = compileCsvToLatex(e.target.value);
+                    const out = document.getElementById("latex-table-output");
+                    if (out) out.value = compiled;
+                  }}
+                  style={{ fontFamily: "'Fira Code', Courier, monospace", fontSize: "0.82rem" }}
+                />
+                <label style={{ marginTop: "4px" }}>
+                  <span>Generated LaTeX Table Code</span>
+                  <textarea
+                    id="latex-table-output"
+                    className="latex-preview"
+                    readOnly
+                    rows="5"
+                    placeholder="LaTeX code will compile here automatically..."
+                    style={{ fontFamily: "'Fira Code', Courier, monospace", fontSize: "0.82rem" }}
+                  />
+                </label>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      const out = document.getElementById("latex-table-output");
+                      if (out && out.value) {
+                        copyText(out.value, "LaTeX Table code copied!");
+                      } else {
+                        showAppToast("No table code compiled yet.", "error");
+                      }
+                    }}
+                    style={{ fontSize: "0.78rem" }}
+                  >
+                    Copy Table Code
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      const inp = document.getElementById("latex-table-csv-input");
+                      const out = document.getElementById("latex-table-output");
+                      if (inp) inp.value = "";
+                      if (out) out.value = "";
+                    }}
+                    style={{ fontSize: "0.78rem", background: "transparent", border: "1px solid var(--border-subtle)" }}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <p className="form-hint" style={{ marginTop: "12px" }}>
               Overleaf workflow: create a blank project, upload images if needed, paste or upload <strong>main.tex</strong>, then compile.
             </p>
           </div>
@@ -4071,15 +4546,15 @@ function App() {
   }), [selectedPage, formData.fontFamily, formData.headingFont, formData.bodyFont, formData.accentColor]);
 
   const studentRows = useMemo(() => [
-    [t(formData, "name"),     formData.submittedByName],
-    [t(formData, "status"),   formData.status],
-    [t(formData, "year"),     formData.year],
-    [t(formData, "semester"), formData.semester],
-    [t(formData, "group"),    formData.group],
-    [t(formData, "session"),  formData.session],
-    [t(formData, "rollNo"),   formData.roll],
-    [t(formData, "regNo"),    formData.registration]
-  ].filter(([,v]) => v.trim()), [formData]);
+    [t(formData, "name"),     formData.submittedByName, "submittedByName"],
+    [t(formData, "status"),   formData.status, "status"],
+    [t(formData, "year"),     formData.year, "year"],
+    [t(formData, "semester"), formData.semester, "semester"],
+    [t(formData, "group"),    formData.group, "group"],
+    [t(formData, "session"),  formData.session, "session"],
+    [t(formData, "rollNo"),   formData.roll, "roll"],
+    [t(formData, "regNo"),    formData.registration, "registration"]
+  ].filter(([,v]) => v && v.trim()), [formData]);
 
   const overleafCode = useMemo(
     () => buildOverleafDocument(formData, studentRows, selectedPage, selectedTemplate),
@@ -4598,6 +5073,7 @@ function App() {
             {enabledPages.cover && (
               <CoverPage
                 formData={formData}
+                updateField={updateField}
                 paperStyle={paperStyle}
                 studentRows={studentRows}
                 is3D={is3D}
@@ -4606,18 +5082,21 @@ function App() {
                 showRulers={showRulers}
                 showGrid={showGrid}
                 showGuides={showGuides}
+                isEditable={true}
               />
             )}
             {enabledPages.acknowledgement && (
               <AcknowledgementPage
                 paperStyle={paperStyle}
                 ackData={ackData}
+                setAckData={setAckData}
                 showRulers={showRulers}
                 showGrid={showGrid}
                 showGuides={showGuides}
                 selectedPage={selectedPage}
                 formData={formData}
                 pageOffset={pageOffsets.acknowledgement}
+                isEditable={true}
               />
             )}
             {enabledPages.transmittal && (
@@ -4625,11 +5104,13 @@ function App() {
                 formData={formData}
                 paperStyle={paperStyle}
                 transmittalData={transmittalData}
+                setTransmittalData={setTransmittalData}
                 showRulers={showRulers}
                 showGrid={showGrid}
                 showGuides={showGuides}
                 selectedPage={selectedPage}
                 pageOffset={pageOffsets.transmittal}
+                isEditable={true}
               />
             )}
             {enabledPages.toc && (
@@ -4646,7 +5127,18 @@ function App() {
               />
             )}
             {enabledPages.abstract && (
-              <AbstractPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} abstractData={abstractData} formData={formData} pageOffset={pageOffsets.abstract} />
+              <AbstractPage
+                paperStyle={paperStyle}
+                showRulers={showRulers}
+                showGrid={showGrid}
+                showGuides={showGuides}
+                selectedPage={selectedPage}
+                abstractData={abstractData}
+                setAbstractData={setAbstractData}
+                formData={formData}
+                pageOffset={pageOffsets.abstract}
+                isEditable={true}
+              />
             )}
             {enabledPages.rubric && (
               <RubricPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} rubricRows={rubricRows} formData={formData} pageOffset={pageOffsets.rubric} />
@@ -4677,6 +5169,7 @@ function App() {
         {enabledPages.cover && (
           <CoverPage
             formData={formData}
+            updateField={updateField}
             paperStyle={paperStyle}
             studentRows={studentRows}
             is3D={false}
@@ -4685,12 +5178,14 @@ function App() {
             showRulers={false}
             showGrid={false}
             showGuides={false}
+            isEditable={false}
           />
         )}
         {enabledPages.acknowledgement && (
           <AcknowledgementPage
             paperStyle={paperStyle}
             ackData={ackData}
+            setAckData={setAckData}
             showRulers={false}
             showGrid={false}
             showGuides={false}
@@ -4698,6 +5193,7 @@ function App() {
             cardRef={exportAckRef}
             formData={formData}
             pageOffset={pageOffsets.acknowledgement}
+            isEditable={false}
           />
         )}
         {enabledPages.transmittal && (
@@ -4705,12 +5201,14 @@ function App() {
             formData={formData}
             paperStyle={paperStyle}
             transmittalData={transmittalData}
+            setTransmittalData={setTransmittalData}
             showRulers={false}
             showGrid={false}
             showGuides={false}
             selectedPage={selectedPage}
             cardRef={exportTransmittalRef}
             pageOffset={pageOffsets.transmittal}
+            isEditable={false}
           />
         )}
         {enabledPages.toc && (
@@ -4727,7 +5225,19 @@ function App() {
           />
         )}
         {enabledPages.abstract && (
-          <AbstractPage paperStyle={paperStyle} showRulers={false} showGrid={false} showGuides={false} selectedPage={selectedPage} cardRef={exportAbstractRef} abstractData={abstractData} formData={formData} pageOffset={pageOffsets.abstract} />
+          <AbstractPage
+            paperStyle={paperStyle}
+            showRulers={false}
+            showGrid={false}
+            showGuides={false}
+            selectedPage={selectedPage}
+            cardRef={exportAbstractRef}
+            abstractData={abstractData}
+            setAbstractData={setAbstractData}
+            formData={formData}
+            pageOffset={pageOffsets.abstract}
+            isEditable={false}
+          />
         )}
         {enabledPages.rubric && (
           <RubricPage paperStyle={paperStyle} showRulers={false} showGrid={false} showGuides={false} selectedPage={selectedPage} cardRef={exportRubricRef} rubricRows={rubricRows} formData={formData} pageOffset={pageOffsets.rubric} />
@@ -4753,6 +5263,7 @@ function App() {
             {enabledPages.cover && (
               <CoverPage
                 formData={formData}
+                updateField={updateField}
                 paperStyle={paperStyle}
                 studentRows={studentRows}
                 is3D={false}
@@ -4761,18 +5272,21 @@ function App() {
                 showRulers={showRulers}
                 showGrid={showGrid}
                 showGuides={showGuides}
+                isEditable={false}
               />
             )}
             {enabledPages.acknowledgement && (
               <AcknowledgementPage
                 paperStyle={paperStyle}
                 ackData={ackData}
+                setAckData={setAckData}
                 showRulers={showRulers}
                 showGrid={showGrid}
                 showGuides={showGuides}
                 selectedPage={selectedPage}
                 formData={formData}
                 pageOffset={pageOffsets.acknowledgement}
+                isEditable={false}
               />
             )}
             {enabledPages.transmittal && (
@@ -4780,11 +5294,13 @@ function App() {
                 formData={formData}
                 paperStyle={paperStyle}
                 transmittalData={transmittalData}
+                setTransmittalData={setTransmittalData}
                 showRulers={showRulers}
                 showGrid={showGrid}
                 showGuides={showGuides}
                 selectedPage={selectedPage}
                 pageOffset={pageOffsets.transmittal}
+                isEditable={false}
               />
             )}
             {enabledPages.toc && (
@@ -4801,7 +5317,18 @@ function App() {
               />
             )}
             {enabledPages.abstract && (
-              <AbstractPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} abstractData={abstractData} formData={formData} pageOffset={pageOffsets.abstract} />
+              <AbstractPage
+                paperStyle={paperStyle}
+                showRulers={showRulers}
+                showGrid={showGrid}
+                showGuides={showGuides}
+                selectedPage={selectedPage}
+                abstractData={abstractData}
+                setAbstractData={setAbstractData}
+                formData={formData}
+                pageOffset={pageOffsets.abstract}
+                isEditable={false}
+              />
             )}
             {enabledPages.rubric && (
               <RubricPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} rubricRows={rubricRows} formData={formData} pageOffset={pageOffsets.rubric} />

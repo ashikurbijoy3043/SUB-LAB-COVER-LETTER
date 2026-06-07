@@ -3153,4 +3153,112 @@ footer p {
   transform: translateY(-1px);
 }
 
+/* ============================================================
+   Premium Features Styles
+   ============================================================ */
+
+/* WYSIWYG Inline Editor Hover/Focus outlines */
+.preview-panel .inline-editable {
+  position: relative;
+  transition: all var(--t-fast) ease;
+  border-radius: 4px;
+}
+.preview-panel .inline-editable:hover {
+  outline: 1.5px dashed var(--accent-color, #1e3a5f);
+  outline-offset: 2px;
+  cursor: text;
+  background-color: rgba(30, 58, 95, 0.03);
+}
+.preview-panel .inline-editable:focus {
+  outline: 2px solid var(--accent-color, #1e3a5f);
+  outline-offset: 2px;
+  background-color: rgba(30, 58, 95, 0.05);
+  box-shadow: 0 0 8px rgba(30, 58, 95, 0.15);
+}
+
+/* Dark cover mode overrides for WYSIWYG */
+.preview-panel .cover-dark .inline-editable:hover {
+  outline: 1.5px dashed #60a5fa;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+.preview-panel .cover-dark .inline-editable:focus {
+  outline: 2px solid #60a5fa;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Template presets visual grid cards */
+.template-presets-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+  margin-top: 6px;
+}
+.preset-card-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--t-fast) ease;
+  box-shadow: var(--shadow-sm);
+  width: 100%;
+}
+.preset-card-btn:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-active);
+  box-shadow: var(--shadow-md);
+  background: var(--bg-hover) !important;
+}
+.preset-card-btn strong {
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: block;
+}
+.preset-card-btn span {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 2px;
+}
+
+/* Tone enhancer buttons */
+.text-enhance-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: var(--r-sm);
+  color: #a5b4fc;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 8px;
+  font-size: 0.7rem;
+  box-shadow: none;
+  transition: all var(--t-fast) ease;
+  height: auto;
+  align-self: center;
+  margin: 0;
+}
+.text-enhance-btn:hover {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: #fff;
+  transform: translateY(-1px);
+}
+:root.light-theme .text-enhance-btn {
+  background: rgba(79, 70, 229, 0.08);
+  border-color: rgba(79, 70, 229, 0.22);
+  color: #4f46e5;
+}
+:root.light-theme .text-enhance-btn:hover {
+  background: rgba(79, 70, 229, 0.15);
+  color: #4f46e5;
+}
+
 
