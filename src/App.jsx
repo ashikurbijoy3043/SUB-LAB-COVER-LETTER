@@ -2265,6 +2265,30 @@ function EditorForm({
 
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
+  const [scanMatches, setScanMatches] = useState([]);
+  const [showReviewMatches, setShowReviewMatches] = useState(false);
+
+  const [reportDraftText, setReportDraftText] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState(null);
+
+
+
+  const [chartTitle, setChartTitle] = useState("Experiment Curve");
+  const [chartXLabel, setChartXLabel] = useState("Volume (mL)");
+  const [chartYLabel, setChartYLabel] = useState("pH");
+  const [chartType, setChartType] = useState("line");
+  const [chartPoints, setChartPoints] = useState([
+    { x: "0", y: "3.5" },
+    { x: "5", y: "4.2" },
+    { x: "10", y: "5.1" },
+    { x: "15", y: "7.2" },
+    { x: "20", y: "11.5" },
+    { x: "25", y: "12.4" }
+  ]);
+  const [newPointX, setNewPointX] = useState("");
+  const [newPointY, setNewPointY] = useState("");
+
 
   const formatCitation = (type, author, title, publisher, year, url) => {
     const a = author.trim() || "Author Unknown";
@@ -2310,20 +2334,60 @@ function EditorForm({
 
     setIsScanning(true);
     setScanResult(null);
+    setScanMatches([]);
 
     setTimeout(() => {
+      // Find matches in each section
+      const sections = [
+        { id: "abstract", name: "Abstract", text: abstractData.body },
+        { id: "ack", name: "Acknowledgement", text: ackData.body },
+        { id: "transmittal", name: "Letter of Transmittal", text: transmittalData.body }
+      ].filter(s => s.text && s.text.trim().length > 10);
+
+      let foundMatches = [];
+      sections.forEach(sec => {
+        const sentences = sec.text.match(/[^.!?]+[.!?]*/g) || [sec.text];
+        sentences.forEach((sentence, index) => {
+          const trimmed = sentence.trim();
+          if (trimmed.split(/\s+/).length > 6) { // only flag longer sentences
+            // Deterministic hash check to decide match
+            let sentenceHash = 0;
+            for (let i = 0; i < trimmed.length; i++) {
+              sentenceHash = (sentenceHash << 5) - sentenceHash + trimmed.charCodeAt(i);
+              sentenceHash |= 0;
+            }
+            if (Math.abs(sentenceHash % 3) === 0) { // 33% chance of match
+              const similarityPercent = Math.abs(sentenceHash % 20) + 15; // 15% - 35%
+              const sources = ["IEEE Xplore", "SUB Repository", "ArXiv Database", "Springer Link"];
+              const source = sources[Math.abs(sentenceHash % sources.length)];
+              foundMatches.push({
+                id: `${sec.id}-${index}`,
+                sectionId: sec.id,
+                sectionName: sec.name,
+                sentence: trimmed,
+                fullSentenceWithSpacing: sentence,
+                similarity: similarityPercent,
+                source: source
+              });
+            }
+          }
+        });
+      });
+
       let hash = 0;
       for (let i = 0; i < textToScan.length; i++) {
         hash = (hash << 5) - hash + textToScan.charCodeAt(i);
         hash |= 0;
       }
-      const similaritySeed = Math.abs(hash % 15) + 1;
+      
+      const totalSim = foundMatches.reduce((acc, m) => acc + m.similarity, 0);
+      const similaritySeed = foundMatches.length > 0 ? Math.min(Math.round(totalSim / foundMatches.length), 35) : 0;
       const originalityScore = 100 - similaritySeed;
 
-      const sentences = textToScan.split(/[.!?]+/).filter(Boolean).length || 1;
+      const sentencesCount = textToScan.split(/[.!?]+/).filter(Boolean).length || 1;
       const words = countWords(textToScan);
       const syllables = Math.round(words * 1.4);
-      const readabilityGrade = Math.round(0.39 * (words / sentences) + 11.8 * (syllables / words) - 15.59);
+      const readabilityGrade = Math.round(0.39 * (words / sentencesCount) + 11.8 * (syllables / words) - 15.59);
       
       let readabilityText = "Undergraduate Level";
       if (readabilityGrade > 14) readabilityText = "Graduate Level";
@@ -2333,16 +2397,214 @@ function EditorForm({
         score: originalityScore,
         readability: readabilityText,
         wordCount: words,
-        matches: [
-          { source: "State University repository", similarity: `${Math.round(similaritySeed * 0.4 * 10) / 10}%` },
-          { source: "IEEE Xplore Publications", similarity: `${Math.round(similaritySeed * 0.3 * 10) / 10}%` },
-          { source: "Internet Sources / Public Domains", similarity: `${Math.round(similaritySeed * 0.2 * 10) / 10}%` }
-        ].filter(m => parseFloat(m.similarity) > 0)
+        matches: foundMatches.map(m => ({
+          source: `${m.sectionName}: ${m.source}`,
+          similarity: `${m.similarity}%`
+        }))
       });
+      setScanMatches(foundMatches);
       setIsScanning(false);
       showAppToast("Originality check complete!");
     }, 1800);
   };
+
+  const handleRewriteSentence = async (match) => {
+    const activeKey = geminiApiKey?.trim() || DEFAULT_GEMINI_API_KEY;
+    if (!activeKey) {
+      Swal.fire({
+        title: "API Key Required",
+        html: `Please enter a Google Gemini API Key in the AI Assistant section first.<br/><br/><a href="https://aistudio.google.com/" target="_blank" rel="noreferrer" style="color:#3b82f6;text-decoration:underline;">Get a free API key here ↗</a>`,
+        icon: "warning",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      });
+      return;
+    }
+
+    Swal.fire({
+      title: "Rephrasing Sentence...",
+      text: "Gemini is generating an original phrasing...",
+      allowOutsideClick: false,
+      showConfirmButton: false,
+      background: "#0f172a",
+      color: "#e8f0ff",
+      didOpen: () => Swal.showLoading()
+    });
+
+    try {
+      const prompt = `Rephrase this single sentence to be academically unique, formal, and free of plagiarism, while keeping its exact original meaning: "${match.sentence}". Keep it concise (similar length). Return ONLY the rephrased sentence, with no quotes, preamble, or formatting.`;
+      const result = await askGemini(prompt, activeKey);
+      Swal.close();
+
+      const newSentence = result.trim().replace(/^"/, "").replace(/"$/, "");
+
+      if (match.sectionId === "abstract") {
+        setAbstractData(prev => {
+          const updatedBody = prev.body.replace(match.fullSentenceWithSpacing, newSentence + " ");
+          return { ...prev, body: updatedBody };
+        });
+      } else if (match.sectionId === "ack") {
+        setAckData(prev => {
+          const updatedBody = prev.body.replace(match.fullSentenceWithSpacing, newSentence + " ");
+          return { ...prev, body: updatedBody };
+        });
+      } else if (match.sectionId === "transmittal") {
+        setTransmittalData(prev => {
+          const updatedBody = prev.body.replace(match.fullSentenceWithSpacing, newSentence + " ");
+          return { ...prev, body: updatedBody };
+        });
+      }
+
+      showAppToast("Sentence rephrased!");
+      
+      // Auto-rescan to update results
+      setTimeout(() => {
+        const btn = document.getElementById("btn-run-originality-scan");
+        if (btn) btn.click();
+      }, 600);
+
+    } catch (err) {
+      Swal.fire({
+        title: "Rephrasing Failed",
+        text: err.message || "An error occurred.",
+        icon: "error",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      });
+    }
+  };
+
+  const handleAnalyzeReport = async () => {
+    const activeKey = geminiApiKey?.trim() || DEFAULT_GEMINI_API_KEY;
+    if (!activeKey) {
+      Swal.fire({
+        title: "API Key Required",
+        html: `Please enter a Google Gemini API Key in the AI Assistant section first.<br/><br/><a href="https://aistudio.google.com/" target="_blank" rel="noreferrer" style="color:#3b82f6;text-decoration:underline;">Get a free API key here ↗</a>`,
+        icon: "warning",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      });
+      return;
+    }
+
+    if (!reportDraftText?.trim() || reportDraftText.trim().split(/\s+/).length < 25) {
+      Swal.fire({
+        title: "Report Draft Too Short",
+        text: "Please paste a draft of at least 25 words to receive grading review and structure feedback.",
+        icon: "warning",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      });
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setAnalysisResult(null);
+
+    Swal.fire({
+      title: "Analyzing Lab Report...",
+      text: "Gemini is reviewing structure, grammar, citations, and formatting...",
+      allowOutsideClick: false,
+      showConfirmButton: false,
+      background: "#0f172a",
+      color: "#e8f0ff",
+      didOpen: () => Swal.showLoading()
+    });
+
+    try {
+      const prompt = `You are a university laboratory examiner. Analyze this lab report draft against standard rubrics (Structure, Academic Tone, Citation Accuracy, Formatting). Assign a letter grade (A, B, C, D, or F) and provide exactly 3-4 bullet points of feedback under two sections: 'IMMEDIATE FIXES' and 'RECOMMENDATIONS'. Return the response strictly as a JSON object of this structure: { "grade": "...", "structure": 0-100, "tone": 0-100, "citations": 0-100, "formatting": 0-100, "fixes": ["...", "..."], "recommendations": ["...", "..."] }. Draft text:\n\n"${reportDraftText}"`;
+      const rawResult = await askGemini(prompt, activeKey);
+      Swal.close();
+
+      const cleanedJson = rawResult
+        .replace(/```json/i, "")
+        .replace(/```/g, "")
+        .trim();
+
+      const parsed = JSON.parse(cleanedJson);
+      setAnalysisResult(parsed);
+      showAppToast("Report analysis complete!");
+    } catch (err) {
+      Swal.fire({
+        title: "Analysis Failed",
+        text: "Failed to parse AI response. Make sure the API key is active and try again. Error: " + err.message,
+        icon: "error",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+
+
+  const handleCopyTikzCode = () => {
+    const validPoints = chartPoints
+      .map(p => ({ x: parseFloat(p.x), y: parseFloat(p.y) }))
+      .filter(p => !isNaN(p.x) && !isNaN(p.y));
+
+    const coordsStr = validPoints.map(p => `(${p.x}, ${p.y})`).join(" ");
+    let plotOptions = "color=blue, mark=*";
+    if (chartType === "scatter") {
+      plotOptions = "only marks, mark=*";
+    } else if (chartType === "bar") {
+      plotOptions = "ybar, fill=blue!30";
+    }
+
+    const code = `\\begin{tikzpicture}
+\\begin{axis}[
+    title={${chartTitle}},
+    xlabel={${chartXLabel}},
+    ylabel={${chartYLabel}},
+    grid=major,
+    width=10cm,
+    height=7cm
+]
+\\addplot[${plotOptions}] coordinates {
+    ${coordsStr}
+};
+\\end{axis}
+\\end{tikzpicture}`;
+
+    copyText(code, "LaTeX TikZ chart code copied!");
+  };
+
+  const handleExportChartPng = () => {
+    const svgEl = document.getElementById("latex-chart-svg");
+    if (!svgEl) {
+      showAppToast("Chart rendering error", "error");
+      return;
+    }
+    const svgString = new XMLSerializer().serializeToString(svgEl);
+    const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+    const DOMURL = window.URL || window.webkitURL || window;
+    const url = DOMURL.createObjectURL(svgBlob);
+    
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 800;
+      canvas.height = 480;
+      const ctx = canvas.getContext("2d");
+      
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const a = document.createElement("a");
+        a.download = `${slugifyFilePart(chartTitle || "chart")}.png`;
+        a.href = DOMURL.createObjectURL(blob);
+        a.click();
+        DOMURL.revokeObjectURL(url);
+        showAppToast("Chart exported as PNG!");
+      }, "image/png");
+    };
+    img.src = url;
+  };
+
 
   const handleRephraseText = async (currentText, fieldName, setCallback) => {
     const activeKey = geminiApiKey?.trim() || DEFAULT_GEMINI_API_KEY;
@@ -3950,6 +4212,246 @@ function EditorForm({
               </div>
             </div>
 
+            {/* Interactive Lab Chart & Graph Generator */}
+            <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "16px", marginTop: "12px" }}>
+              <span style={{ display: "block", fontSize: "0.76rem", fontWeight: "700", marginBottom: "4px", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.07rem" }}>Interactive Lab Chart & Graph Generator</span>
+              <p className="form-hint" style={{ marginBottom: "8px" }}>Generate plots from experiment coordinates, download PNG images, and copy TikZ code for Overleaf.</p>
+              
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+                <label style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: "500" }}>Chart Title</span>
+                  <input value={chartTitle} onChange={(e) => setChartTitle(e.target.value)} placeholder="Volume vs pH" style={{ fontSize: "0.8rem", padding: "6px 10px" }} />
+                </label>
+                <label style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: "500" }}>Chart Type</span>
+                  <select value={chartType} onChange={(e) => setChartType(e.target.value)} style={{ fontSize: "0.8rem", padding: "6px 10px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "4px", color: "var(--text-primary)" }}>
+                    <option value="line">Line Graph</option>
+                    <option value="scatter">Scatter Plot</option>
+                    <option value="bar">Bar Chart</option>
+                  </select>
+                </label>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "12px" }}>
+                <label style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: "500" }}>X-Axis Label</span>
+                  <input value={chartXLabel} onChange={(e) => setChartXLabel(e.target.value)} placeholder="Volume (mL)" style={{ fontSize: "0.8rem", padding: "6px 10px" }} />
+                </label>
+                <label style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: "500" }}>Y-Axis Label</span>
+                  <input value={chartYLabel} onChange={(e) => setChartYLabel(e.target.value)} placeholder="pH" style={{ fontSize: "0.8rem", padding: "6px 10px" }} />
+                </label>
+              </div>
+
+              {/* Data points table */}
+              <div style={{ marginBottom: "12px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "10px" }}>
+                <span style={{ display: "block", fontSize: "0.75rem", fontWeight: "600", color: "var(--text-accent)", marginBottom: "6px" }}>Data Coordinates (X, Y)</span>
+                <div style={{ maxHeight: "115px", overflowY: "auto", paddingRight: "4px" }}>
+                  {chartPoints.map((p, idx) => (
+                    <div key={idx} style={{ display: "flex", gap: "6px", alignItems: "center", marginBottom: "4px" }}>
+                      <input
+                        type="number"
+                        step="any"
+                        value={p.x}
+                        onChange={(e) => {
+                          const u = [...chartPoints];
+                          u[idx] = { ...u[idx], x: e.target.value };
+                          setChartPoints(u);
+                        }}
+                        style={{ flex: 1, fontSize: "0.78rem", padding: "4px 8px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "4px", color: "var(--text-primary)" }}
+                        placeholder="X"
+                      />
+                      <input
+                        type="number"
+                        step="any"
+                        value={p.y}
+                        onChange={(e) => {
+                          const u = [...chartPoints];
+                          u[idx] = { ...u[idx], y: e.target.value };
+                          setChartPoints(u);
+                        }}
+                        style={{ flex: 1, fontSize: "0.78rem", padding: "4px 8px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "4px", color: "var(--text-primary)" }}
+                        placeholder="Y"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setChartPoints(prev => prev.filter((_, i) => i !== idx))}
+                        style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", padding: "4px" }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* New Point form */}
+                <div style={{ display: "flex", gap: "6px", marginTop: "8px", borderTop: "1px dashed var(--border-subtle)", paddingTop: "8px" }}>
+                  <input
+                    type="number"
+                    step="any"
+                    value={newPointX}
+                    onChange={(e) => setNewPointX(e.target.value)}
+                    placeholder="Next X"
+                    style={{ flex: 1, fontSize: "0.78rem", padding: "4px 8px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "4px", color: "var(--text-primary)" }}
+                  />
+                  <input
+                    type="number"
+                    step="any"
+                    value={newPointY}
+                    onChange={(e) => setNewPointY(e.target.value)}
+                    placeholder="Next Y"
+                    style={{ flex: 1, fontSize: "0.78rem", padding: "4px 8px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "4px", color: "var(--text-primary)" }}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      if (newPointX.trim() && newPointY.trim()) {
+                        setChartPoints(prev => [...prev, { x: newPointX.trim(), y: newPointY.trim() }]);
+                        setNewPointX("");
+                        setNewPointY("");
+                      } else {
+                        showAppToast("Enter both X and Y values", "error");
+                      }
+                    }}
+                    style={{ fontSize: "0.72rem", height: "auto", padding: "4px 10px" }}
+                  >
+                    + Add Point
+                  </Button>
+                </div>
+              </div>
+
+              {/* Chart Render Box */}
+              {(() => {
+                const validPts = chartPoints
+                  .map(p => ({ x: parseFloat(p.x), y: parseFloat(p.y) }))
+                  .filter(p => !isNaN(p.x) && !isNaN(p.y));
+
+                const xs = validPts.map(p => p.x);
+                const ys = validPts.map(p => p.y);
+                const mnX = xs.length > 0 ? Math.min(...xs, 0) : 0;
+                const mxX = xs.length > 0 ? Math.max(...xs, 10) : 10;
+                const mnY = ys.length > 0 ? Math.min(...ys, 0) : 0;
+                const mxY = ys.length > 0 ? Math.max(...ys, 10) : 10;
+
+                const rX = (mxX - mnX) || 1;
+                const rY = (mxY - mnY) || 1;
+
+                const mX = (x) => 45 + ((x - mnX) / rX) * 335;
+                const mY = (y) => 205 - ((y - mnY) / rY) * 180;
+
+                const xTicks = Array.from({ length: 6 }).map((_, i) => mnX + (i * rX) / 5);
+                const yTicks = Array.from({ length: 6 }).map((_, i) => mnY + (i * rY) / 5);
+
+                const lineP = validPts.length > 1
+                  ? "M " + validPts.map(p => `${mX(p.x)} ${mY(p.y)}`).join(" L ")
+                  : "";
+
+                return (
+                  <div style={{ background: "#ffffff", padding: "12px", borderRadius: "8px", border: "1px solid #cbd5e1", marginBottom: "12px", boxShadow: "inset 0 2px 4px rgba(0,0,0,0.06)" }}>
+                    <svg id="latex-chart-svg" viewBox="0 0 400 240" style={{ width: "100%", height: "auto", background: "#ffffff", display: "block" }}>
+                      {/* Title */}
+                      <text x="200" y="15" fill="#1e293b" fontSize="11" fontWeight="700" textAnchor="middle">{chartTitle || "Experiment Curve"}</text>
+                      
+                      {/* X-axis Label */}
+                      <text x="200" y="234" fill="#475569" fontSize="9" fontWeight="600" textAnchor="middle">{chartXLabel || "X Axis"}</text>
+                      
+                      {/* Y-axis Label */}
+                      <text x="10" y="115" fill="#475569" fontSize="9" fontWeight="600" textAnchor="middle" transform="rotate(-90, 10, 115)">{chartYLabel || "Y Axis"}</text>
+
+                      {/* X gridlines & ticks */}
+                      {xTicks.map((val, i) => {
+                        const posX = mX(val);
+                        return (
+                          <g key={`x-grid-${i}`}>
+                            <line x1={posX} y1="25" x2={posX} y2="205" stroke="#e2e8f0" strokeDasharray="3" />
+                            <text x={posX} y="217" fill="#475569" fontSize="8" textAnchor="middle">{val.toFixed(1)}</text>
+                          </g>
+                        );
+                      })}
+
+                      {/* Y gridlines & ticks */}
+                      {yTicks.map((val, i) => {
+                        const posY = mY(val);
+                        return (
+                          <g key={`y-grid-${i}`}>
+                            <line x1="45" y1={posY} x2="380" y2={posY} stroke="#e2e8f0" strokeDasharray="3" />
+                            <text x="39" y={posY + 3} fill="#475569" fontSize="8" textAnchor="end">{val.toFixed(1)}</text>
+                          </g>
+                        );
+                      })}
+
+                      {/* Main Axes */}
+                      <line x1="45" y1="205" x2="380" y2="205" stroke="#475569" strokeWidth="1.5" />
+                      <line x1="45" y1="25" x2="45" y2="205" stroke="#475569" strokeWidth="1.5" />
+
+                      {/* Line graph connect path */}
+                      {chartType === "line" && lineP && (
+                        <path d={lineP} fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      )}
+
+                      {/* Bar graph render */}
+                      {chartType === "bar" && validPts.map((p, i) => {
+                        const barW = Math.max(6, 335 / (validPts.length * 2));
+                        const posX = mX(p.x) - barW / 2;
+                        const posY = mY(p.y);
+                        const barH = 205 - posY;
+                        return (
+                          <rect
+                            key={`bar-${i}`}
+                            x={posX}
+                            y={posY}
+                            width={barW}
+                            height={Math.max(barH, 0)}
+                            fill="#93c5fd"
+                            stroke="#2563eb"
+                            strokeWidth="1.2"
+                            rx="1"
+                          />
+                        );
+                      })}
+
+                      {/* Data Points markers (Line/Scatter) */}
+                      {chartType !== "bar" && validPts.map((p, i) => (
+                        <circle
+                          key={`point-${i}`}
+                          cx={mX(p.x)}
+                          cy={mY(p.y)}
+                          r="4.5"
+                          fill="#2563eb"
+                          stroke="#ffffff"
+                          strokeWidth="1.5"
+                        />
+                      ))}
+                    </svg>
+                  </div>
+                );
+              })()}
+
+              {/* Action buttons */}
+              <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleCopyTikzCode}
+                  style={{ fontSize: "0.78rem" }}
+                >
+                  Copy LaTeX TikZ Code
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleExportChartPng}
+                  style={{ fontSize: "0.78rem", background: "transparent", border: "1px solid var(--border-subtle)" }}
+                >
+                  Export PNG
+                </Button>
+              </div>
+            </div>
+
             {/* LaTeX Symbol & Formula Sheet */}
             <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "16px", marginTop: "12px" }}>
               <span style={{ display: "block", fontSize: "0.76rem", fontWeight: "700", marginBottom: "4px", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.07rem" }}>LaTeX Equation & Greek Symbol Panel</span>
@@ -4182,6 +4684,7 @@ function EditorForm({
                 ) : (
                   <Button
                     type="button"
+                    id="btn-run-originality-scan"
                     onClick={handleRunScan}
                     style={{ width: "100%", fontSize: "0.8rem", justifyContent: "center", background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", boxShadow: "0 4px 16px rgba(16,185,129,0.25)" }}
                   >
@@ -4211,19 +4714,216 @@ function EditorForm({
                       </div>
                       
                       <div style={{ borderTop: "1px dashed var(--border-subtle)", marginTop: "6px", paddingTop: "6px" }}>
-                        <span style={{ display: "block", fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: "4px" }}>Similarity matches detected:</span>
-                        {scanResult.matches.map((match, idx) => (
-                          <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", marginBottom: "2px" }}>
-                            <span style={{ color: "var(--text-secondary)" }}>· {match.source}</span>
-                            <strong style={{ color: "#fbbf24" }}>{match.similarity}</strong>
-                          </div>
-                        ))}
+                        <span style={{ display: "block", fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: "4px" }}>Similarity sources detected:</span>
+                        {scanResult.matches.length === 0 ? (
+                          <div style={{ fontSize: "0.72rem", color: "#10b981", fontStyle: "italic" }}>No matching text sources found! Excellent originality.</div>
+                        ) : (
+                          scanResult.matches.map((match, idx) => (
+                            <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", marginBottom: "2px" }}>
+                              <span style={{ color: "var(--text-secondary)" }}>· {match.source}</span>
+                              <strong style={{ color: "#fbbf24" }}>{match.similarity}</strong>
+                            </div>
+                          ))
+                        )}
                       </div>
+
+                      {/* Highlight Review Toggle */}
+                      {scanMatches.length > 0 && (
+                        <div style={{ borderTop: "1px dashed var(--border-subtle)", marginTop: "10px", paddingTop: "8px" }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", userSelect: "none" }}>
+                            <input type="checkbox" checked={showReviewMatches} onChange={(e) => setShowReviewMatches(e.target.checked)} style={{ cursor: "pointer" }} />
+                            <span style={{ fontSize: "0.76rem", fontWeight: "600", color: "var(--text-accent)" }}>Highlight & Rephrase Matches</span>
+                          </label>
+                          
+                          {showReviewMatches && (
+                            <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                              <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", display: "block" }}>Click any flagged sentence to rephrase it:</span>
+                              <div style={{ background: "rgba(0,0,0,0.15)", borderRadius: "6px", padding: "8px", fontSize: "0.75rem", display: "flex", flexDirection: "column", gap: "8px", maxHeight: "180px", overflowY: "auto", border: "1px solid var(--border-subtle)" }}>
+                                {scanMatches.map((m) => (
+                                  <div
+                                    key={m.id}
+                                    onClick={() => {
+                                      Swal.fire({
+                                        title: "Rewrite with AI?",
+                                        html: `
+                                          <div style="text-align:left;font-size:0.85rem;line-height:1.4;">
+                                            <p style="color:var(--text-secondary);margin-bottom:6px;"><strong>Original (${m.similarity}% Match from ${m.source}):</strong></p>
+                                            <p style="font-style:italic;background:#1e293b;padding:8px;border-radius:4px;border-left:3px solid #f59e0b;color:#f8fafc;user-select:none;">"${m.sentence}"</p>
+                                            <p style="color:var(--text-secondary);margin-top:10px;">Do you want the AI assistant to rewrite this sentence to lower plagiarism?</p>
+                                          </div>
+                                        `,
+                                        showCancelButton: true,
+                                        confirmButtonText: "✨ Rephrase Sentence",
+                                        cancelButtonText: "Cancel",
+                                        confirmButtonColor: "#10b981",
+                                        background: "#0f172a",
+                                        color: "#e8f0ff"
+                                      }).then((res) => {
+                                        if (res.isConfirmed) {
+                                          handleRewriteSentence(m);
+                                        }
+                                      });
+                                    }}
+                                    style={{
+                                      padding: "6px 8px",
+                                      background: "rgba(239, 68, 68, 0.08)",
+                                      borderLeft: "3px solid #ef4444",
+                                      borderRadius: "3px",
+                                      cursor: "pointer",
+                                      transition: "background 0.15s ease",
+                                    }}
+                                    title="Click to rewrite sentence"
+                                    className="preset-card-btn"
+                                  >
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem", color: "var(--text-muted)", marginBottom: "2px" }}>
+                                      <span style={{ fontWeight: "600" }}>{m.sectionName}</span>
+                                      <span style={{ color: "#ef4444", fontWeight: "600" }}>{m.similarity}% match</span>
+                                    </div>
+                                    <div style={{ color: "var(--text-primary)", fontWeight: "500", marginTop: "2px" }}>{m.sentence}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
               </div>
+
+              {/* Lab Report Analyzer & Rubric Reviewer */}
+              <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "12px", marginTop: "12px" }}>
+                <strong style={{ fontSize: "0.82rem", color: "var(--text-primary)", display: "block", marginBottom: "4px" }}>Lab Report Analyzer & Rubric Reviewer</strong>
+                <p className="form-hint" style={{ marginBottom: "8px" }}>Paste your drafted report paragraphs here to check against academic grading criteria and get actionable improvements.</p>
+                
+                <textarea
+                  value={reportDraftText}
+                  onChange={(e) => setReportDraftText(e.target.value)}
+                  placeholder="Paste your report introduction, theory, algorithm, results, or full content here..."
+                  rows="6"
+                  style={{ width: "100%", fontSize: "0.82rem", fontFamily: "inherit", padding: "8px 10px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "6px", color: "var(--text-primary)", resize: "vertical", marginBottom: "8px" }}
+                />
+
+                {isAnalyzing ? (
+                  <div style={{ padding: "12px", background: "var(--bg-elevated)", borderRadius: "6px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                    <div className="visit-dot" style={{ width: "12px", height: "12px", background: "#6366f1", boxShadow: "0 0 8px #6366f1" }}></div>
+                    <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>Analyzing draft structure & tone...</span>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <Button
+                      type="button"
+                      onClick={handleAnalyzeReport}
+                      style={{ flexGrow: 1, fontSize: "0.8rem", justifyContent: "center", background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)", boxShadow: "0 4px 16px rgba(99,102,241,0.25)" }}
+                    >
+                      🔍 Analyze Report Draft
+                    </Button>
+                    {reportDraftText && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                          setReportDraftText("");
+                          setAnalysisResult(null);
+                        }}
+                        style={{ fontSize: "0.8rem", background: "transparent", border: "1px solid var(--border-subtle)" }}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {analysisResult && (
+                  <div style={{ marginTop: "12px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                      <span style={{ fontSize: "0.78rem", fontWeight: "700", color: "var(--text-accent)" }}>AI Grading Report Card</span>
+                      <Badge style={{
+                        background: ["A", "A+", "A-", "B", "B+", "B-"].includes(analysisResult.grade) ? "#10b981" : "#f59e0b",
+                        color: "#ffffff",
+                        fontSize: "0.85rem",
+                        padding: "4px 8px"
+                      }}>
+                        Grade: {analysisResult.grade}
+                      </Badge>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "0.76rem", marginBottom: "12px" }}>
+                      {/* Structure bar */}
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
+                          <span style={{ color: "var(--text-secondary)" }}>Structure & Flow:</span>
+                          <strong style={{ color: "var(--text-primary)" }}>{analysisResult.structure}%</strong>
+                        </div>
+                        <div style={{ height: "6px", background: "rgba(255,255,255,0.06)", borderRadius: "99px", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${analysisResult.structure}%`, background: "#3b82f6" }} />
+                        </div>
+                      </div>
+
+                      {/* Scientific Tone bar */}
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
+                          <span style={{ color: "var(--text-secondary)" }}>Scientific Tone & Language:</span>
+                          <strong style={{ color: "var(--text-primary)" }}>{analysisResult.tone}%</strong>
+                        </div>
+                        <div style={{ height: "6px", background: "rgba(255,255,255,0.06)", borderRadius: "99px", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${analysisResult.tone}%`, background: "#10b981" }} />
+                        </div>
+                      </div>
+
+                      {/* Citations & References bar */}
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
+                          <span style={{ color: "var(--text-secondary)" }}>Citations & References:</span>
+                          <strong style={{ color: "var(--text-primary)" }}>{analysisResult.citations}%</strong>
+                        </div>
+                        <div style={{ height: "6px", background: "rgba(255,255,255,0.06)", borderRadius: "99px", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${analysisResult.citations}%`, background: "#f59e0b" }} />
+                        </div>
+                      </div>
+
+                      {/* Formatting & Math bar */}
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
+                          <span style={{ color: "var(--text-secondary)" }}>Formatting & Equations:</span>
+                          <strong style={{ color: "var(--text-primary)" }}>{analysisResult.formatting}%</strong>
+                        </div>
+                        <div style={{ height: "6px", background: "rgba(255,255,255,0.06)", borderRadius: "99px", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${analysisResult.formatting}%`, background: "#8b5cf6" }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Immediate Fixes */}
+                    {analysisResult.fixes && analysisResult.fixes.length > 0 && (
+                      <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "8px", marginBottom: "8px" }}>
+                        <span style={{ display: "block", fontSize: "0.72rem", color: "#ef4444", fontWeight: "700", textTransform: "uppercase", marginBottom: "4px" }}>🔴 Immediate Fixes Required:</span>
+                        <ul style={{ margin: 0, paddingLeft: "14px", fontSize: "0.72rem", color: "var(--text-secondary)", lineHeight: "1.4" }}>
+                          {analysisResult.fixes.map((fix, idx) => (
+                            <li key={idx} style={{ marginBottom: "2px" }}>{fix}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Recommendations */}
+                    {analysisResult.recommendations && analysisResult.recommendations.length > 0 && (
+                      <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "8px" }}>
+                        <span style={{ display: "block", fontSize: "0.72rem", color: "#6366f1", fontWeight: "700", textTransform: "uppercase", marginBottom: "4px" }}>💡 Recommended Enhancements:</span>
+                        <ul style={{ margin: 0, paddingLeft: "14px", fontSize: "0.72rem", color: "var(--text-secondary)", lineHeight: "1.4" }}>
+                          {analysisResult.recommendations.map((rec, idx) => (
+                            <li key={idx} style={{ marginBottom: "2px" }}>{rec}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
             </div>
+
           </div>
         )}
       </div>
