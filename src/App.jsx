@@ -5,6 +5,8 @@ import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
 
+const DEFAULT_GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? "";
+
 const ASSET_BASE_URL = import.meta.env.BASE_URL ?? "/";
 const SUB_LOGO_URL = `${ASSET_BASE_URL}sub-logo.jpg`;
 const CSE_IMAGE_URL = `${ASSET_BASE_URL}cse-logo.jpg`;
@@ -1929,10 +1931,215 @@ function EditorForm({
   setLabInfoData,
   appendixData,
   setAppendixData,
-  exportShareUrl
+  exportShareUrl,
+  geminiApiKey,
+  setGeminiApiKey
 }) {
   const [commandQuery, setCommandQuery] = useState("");
   const [commandCategory, setCommandCategory] = useState("all");
+  const [latexQuery, setLatexQuery] = useState("");
+
+  const handleRefineTitle = async () => {
+    const activeKey = geminiApiKey?.trim() || DEFAULT_GEMINI_API_KEY;
+    if (!activeKey) {
+      Swal.fire({
+        title: "API Key Required",
+        html: `Please enter a Google Gemini API Key in the AI Assistant section first.<br/><br/><a href="https://aistudio.google.com/" target="_blank" rel="noreferrer" style="color:#3b82f6;text-decoration:underline;">Get a free API key here ↗</a>`,
+        icon: "warning",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      });
+      return;
+    }
+
+    Swal.fire({
+      title: "Analyzing Title...",
+      text: "Gemini is generating academic title suggestions...",
+      allowOutsideClick: false,
+      showConfirmButton: false,
+      background: "#0f172a",
+      color: "#e8f0ff",
+      didOpen: () => Swal.showLoading()
+    });
+
+    try {
+      const prompt = `Suggest 3 professional, scientifically accurate academic titles for a laboratory report based on this input title: "${formData.reportTitle}". Make them sound formal and suitable for university submissions. Return ONLY the 3 options as numbered items, with no preamble or intro text.`;
+      const result = await askGemini(prompt, activeKey);
+      Swal.close();
+
+      const options = result.split(/\n+/).filter(line => /^\d+\./.test(line.trim()));
+      
+      if (options.length === 0) {
+        Swal.fire({
+          title: "Suggestions",
+          html: `<pre style="text-align:left;background:#1e293b;padding:12px;border-radius:6px;color:#f8fafc;white-space:pre-wrap;">${result}</pre>`,
+          background: "#0f172a",
+          color: "#e8f0ff"
+        });
+        return;
+      }
+
+      Swal.fire({
+        title: "Select an Academic Title",
+        text: "Click an option to apply it to your cover page:",
+        background: "#0f172a",
+        color: "#e8f0ff",
+        showCancelButton: true,
+        cancelButtonText: "Close",
+        showConfirmButton: false,
+        html: `
+          <div style="display:flex;flex-direction:column;gap:8px;text-align:left;margin-top:12px;">
+            ${options.map((opt, i) => {
+              return `<button type="button" class="swal-opt-btn" onclick="window.applyRefinedTitle(${i})" style="width:100%;text-align:left;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);border-radius:6px;color:#f8fafc;padding:10px 14px;cursor:pointer;font-family:inherit;font-size:0.88rem;transition:all 0.15s ease;">${opt}</button>`;
+            }).join("")}
+          </div>
+        `
+      });
+
+      window.applyRefinedTitle = (index) => {
+        const selected = options[index].replace(/^\d+\.\s*/, "").replace(/["']/g, "").trim();
+        updateField("reportTitle", selected);
+        Swal.close();
+        showAppToast("Report title updated!");
+      };
+
+    } catch (err) {
+      Swal.fire({
+        title: "AI Suggestion Failed",
+        text: err.message || "An error occurred.",
+        icon: "error",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      });
+    }
+  };
+
+  const handleGenerateObjective = async () => {
+    const activeKey = geminiApiKey?.trim() || DEFAULT_GEMINI_API_KEY;
+    if (!activeKey) {
+      Swal.fire({
+        title: "API Key Required",
+        html: `Please enter a Google Gemini API Key in the AI Assistant section first.<br/><br/><a href="https://aistudio.google.com/" target="_blank" rel="noreferrer" style="color:#3b82f6;text-decoration:underline;">Get a free API key here ↗</a>`,
+        icon: "warning",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      });
+      return;
+    }
+
+    Swal.fire({
+      title: "Drafting Objective...",
+      text: "Gemini is writing the report objectives...",
+      allowOutsideClick: false,
+      showConfirmButton: false,
+      background: "#0f172a",
+      color: "#e8f0ff",
+      didOpen: () => Swal.showLoading()
+    });
+
+    try {
+      const prompt = `Write a structured, formal academic objective/introduction paragraph (about 60-80 words) for a laboratory report titled: "${formData.reportTitle}". Use professional scientific language suitable for a university submission. Return ONLY the paragraph, no preamble or conversation.`;
+      const result = await askGemini(prompt, activeKey);
+      Swal.close();
+
+      Swal.fire({
+        title: "Generated Lab Objective",
+        html: `
+          <div style="text-align:left;">
+            <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:8px;">Here is the suggested objective statement:</p>
+            <textarea id="swal-objective-text" style="width:100%;height:120px;background:#1e293b;border:1px solid #334155;border-radius:6px;color:#f8fafc;padding:10px;font-family:inherit;font-size:0.88rem;resize:vertical;" readonly>${result.trim()}</textarea>
+          </div>
+        `,
+        showCancelButton: true,
+        showConfirmButton: true,
+        confirmButtonText: "Apply to Abstract",
+        cancelButtonText: "Close",
+        confirmButtonColor: "#2563eb",
+        denyButtonText: "Apply to Acknowledgement",
+        showDenyButton: true,
+        denyButtonColor: "#4f46e5",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      }).then((choice) => {
+        if (choice.isConfirmed) {
+          setAbstractData(prev => ({ ...prev, body: result.trim() }));
+          setEnabledPages(prev => ({ ...prev, abstract: true }));
+          showAppToast("Applied to Abstract page!");
+        } else if (choice.isDenied) {
+          setAckData(prev => ({ ...prev, body: result.trim() }));
+          setEnabledPages(prev => ({ ...prev, acknowledgement: true }));
+          showAppToast("Applied to Acknowledgement page!");
+        }
+      });
+    } catch (err) {
+      Swal.fire({
+        title: "AI Generation Failed",
+        text: err.message || "An error occurred.",
+        icon: "error",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      });
+    }
+  };
+
+  const handleLatexQuery = async () => {
+    const activeKey = geminiApiKey?.trim() || DEFAULT_GEMINI_API_KEY;
+    if (!activeKey) {
+      Swal.fire({
+        title: "API Key Required",
+        html: `Please enter a Google Gemini API Key in the AI Assistant section first.<br/><br/><a href="https://aistudio.google.com/" target="_blank" rel="noreferrer" style="color:#3b82f6;text-decoration:underline;">Get a free API key here ↗</a>`,
+        icon: "warning",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      });
+      return;
+    }
+
+    Swal.fire({
+      title: "Querying LaTeX Helper...",
+      text: "Gemini is generating the LaTeX code...",
+      allowOutsideClick: false,
+      showConfirmButton: false,
+      background: "#0f172a",
+      color: "#e8f0ff",
+      didOpen: () => Swal.showLoading()
+    });
+
+    try {
+      const prompt = `You are an expert LaTeX assistant. The student wants to write LaTeX code for: "${latexQuery}". Provide ONLY the exact LaTeX code snippet they can copy-paste, along with a very brief 1-line hint if helpful. Do NOT wrap it in markdown code block syntax (like \`\`\`latex) - just return raw text and code.`;
+      const result = await askGemini(prompt, activeKey);
+      Swal.close();
+
+      Swal.fire({
+        title: "LaTeX Assistant Response",
+        html: `
+          <div style="text-align:left;">
+            <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:8px;">Copy the generated LaTeX code below:</p>
+            <textarea id="swal-latex-code" style="width:100%;height:150px;background:#1e293b;border:1px solid #334155;border-radius:6px;color:#f8fafc;padding:10px;font-family:'Fira Code', Courier, monospace;font-size:0.82rem;resize:vertical;" readonly>${result.trim()}</textarea>
+          </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: "Copy to Clipboard",
+        cancelButtonText: "Close",
+        confirmButtonColor: "#2563eb",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      }).then((choice) => {
+        if (choice.isConfirmed) {
+          navigator.clipboard.writeText(result.trim());
+          showAppToast("Copied to clipboard!");
+        }
+      });
+    } catch (err) {
+      Swal.fire({
+        title: "LaTeX query failed",
+        text: err.message || "An error occurred.",
+        icon: "error",
+        background: "#0f172a",
+        color: "#e8f0ff"
+      });
+    }
+  };
   const commandCategories = useMemo(
     () => [...new Set(latexCommandCards.map((card) => card.category))],
     []
@@ -3142,6 +3349,106 @@ function EditorForm({
           </div>
         )}
       </div>
+
+      {/* AI Assistant Accordion */}
+      <div className={`accordion-item ${activeSection === "ai-assistant" ? "active" : ""}`}>
+        <button type="button" className="accordion-header" onClick={() => toggleSection("ai-assistant")}>
+          <span className="accordion-title-wrapper">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+            <span>AI Assistant</span>
+          </span>
+          <svg className="accordion-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+        </button>
+        {activeSection === "ai-assistant" && (
+          <div className="accordion-content">
+            <div className="profile-instructions" style={{ background: "rgba(99, 102, 241, 0.05)", borderLeft: "3px solid #6366f1", padding: "8px 12px", borderRadius: "4px", marginBottom: "8px", fontSize: "0.78rem" }}>
+              <strong>Powered by Google Gemini 1.5 Flash:</strong>
+              <p style={{ margin: "4px 0 0 0", lineHeight: "1.4" }}>
+                Use a free developer key from Google AI Studio to unlock automatic academic title refining, lab objectives drafting, and LaTeX helpers.
+              </p>
+              <a href="https://aistudio.google.com/" target="_blank" rel="noreferrer" style={{ display: "inline-block", marginTop: "6px", color: "#60a5fa", fontWeight: "600", textDecoration: "underline" }}>
+                Get a Free API Key here ↗
+              </a>
+            </div>
+
+            <label><span>Gemini API Key</span>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <input
+                  type="password"
+                  value={geminiApiKey}
+                  onChange={(e) => setGeminiApiKey(e.target.value)}
+                  placeholder={geminiApiKey ? "Custom key active" : "Using shared key (paste custom key to override)"}
+                  style={{ flexGrow: 1 }}
+                />
+                {geminiApiKey && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setGeminiApiKey("");
+                      showAppToast("API Key removed");
+                    }}
+                    style={{ background: "#ef4444", color: "#fff", border: "none" }}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </label>
+
+            <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "12px", marginTop: "6px", display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div>
+                <strong style={{ fontSize: "0.82rem", color: "var(--text-primary)", display: "block", marginBottom: "4px" }}>Refine Report Title</strong>
+                <p className="form-hint" style={{ marginBottom: "8px" }}>Takes the current report title and suggests 3 professional alternatives.</p>
+                <Button
+                  type="button"
+                  onClick={handleRefineTitle}
+                  style={{ width: "100%", fontSize: "0.8rem", justifyContent: "center" }}
+                  disabled={!formData.reportTitle?.trim()}
+                >
+                  ✨ Suggest Academic Titles
+                </Button>
+              </div>
+
+              <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "12px" }}>
+                <strong style={{ fontSize: "0.82rem", color: "var(--text-primary)", display: "block", marginBottom: "4px" }}>Generate Lab Objective</strong>
+                <p className="form-hint" style={{ marginBottom: "8px" }}>Drafts an academic introduction paragraph based on the current title.</p>
+                <Button
+                  type="button"
+                  onClick={handleGenerateObjective}
+                  style={{ width: "100%", fontSize: "0.8rem", justifyContent: "center" }}
+                  disabled={!formData.reportTitle?.trim()}
+                >
+                  📝 Draft Lab Objective / Introduction
+                </Button>
+              </div>
+
+              <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "12px" }}>
+                <strong style={{ fontSize: "0.82rem", color: "var(--text-primary)", display: "block", marginBottom: "4px" }}>LaTeX Command Helper</strong>
+                <p className="form-hint" style={{ marginBottom: "8px" }}>Ask how to write tables, matrices, or formulas in LaTeX.</p>
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <input
+                    value={latexQuery}
+                    onChange={(e) => setLatexQuery(e.target.value)}
+                    placeholder="e.g. how to write a 3x3 matrix?"
+                    style={{ flexGrow: 1 }}
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleLatexQuery}
+                    style={{ padding: "10px 14px" }}
+                    disabled={!latexQuery.trim()}
+                  >
+                    Ask
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </form>
   );
 }
@@ -3150,6 +3457,46 @@ function EditorForm({
    MAIN APP
 ════════════════════════════════════ */
 let hitPromise = null;
+
+async function askGemini(prompt, apiKey) {
+  const finalKey = apiKey?.trim() || DEFAULT_GEMINI_API_KEY;
+  if (!finalKey) {
+    throw new Error("Please enter your Gemini API Key in the AI Assistant section first.");
+  }
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${finalKey}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    const errMsg = errData?.error?.message || `API Error: ${response.status} ${response.statusText}`;
+    throw new Error(errMsg);
+  }
+
+  const data = await response.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error("No response text returned from Gemini API.");
+  }
+  return text;
+}
 
 function App() {
   const [formData, setFormData] = useState(defaultData);
@@ -3202,6 +3549,20 @@ function App() {
 
   const toggleAppTheme = () => {
     setAppTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  };
+
+  // Gemini API Key State
+  const [geminiApiKey, setGeminiApiKeyState] = useState(() => {
+    return localStorage.getItem("sub_lab_gemini_api_key") || "";
+  });
+
+  const setGeminiApiKey = (key) => {
+    setGeminiApiKeyState(key);
+    if (key) {
+      localStorage.setItem("sub_lab_gemini_api_key", key);
+    } else {
+      localStorage.removeItem("sub_lab_gemini_api_key");
+    }
   };
 
   // 2. Profiles state
@@ -4124,6 +4485,8 @@ function App() {
             appendixData={appendixData}
             setAppendixData={setAppendixData}
             exportShareUrl={exportShareUrl}
+            geminiApiKey={geminiApiKey}
+            setGeminiApiKey={setGeminiApiKey}
           />
         </div>
       </section>
