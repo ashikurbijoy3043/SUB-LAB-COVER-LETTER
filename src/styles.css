@@ -2341,11 +2341,6 @@ footer p {
   to { opacity: 1; transform: translate(50%, 0) scale(1); }
 }
 
-@keyframes dropdownFadeInMobile {
-  from { opacity: 0; transform: translateY(8px) scale(0.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
 .lightbox-hint kbd {
   background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.12);
@@ -2639,12 +2634,6 @@ footer p {
   /* Lightbox on mobile */
   .lightbox-content { max-height: 95vh; max-width: 97vw; }
   .lightbox-hint    { font-size: 0.7rem; padding: 6px 12px; bottom: 14px; }
-  .toolbar-dropdown.lightbox-dropdown {
-    right: 0;
-    transform: none;
-    bottom: calc(100% + 10px);
-    animation: dropdownFadeInMobile 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
 }
 
 /* ══════════════════════════════════════
@@ -2675,15 +2664,7 @@ footer p {
   .mobile-tab svg { width: 14px; height: 14px; }
 
   .lightbox-close { width: 36px; height: 36px; top: 10px; right: 10px; }
-  .lightbox-hint  {
-    display: flex !important;
-    bottom: 12px;
-    padding: 6px 12px;
-  }
-  .lightbox-hint > svg:first-of-type,
-  .lightbox-hint > span {
-    display: none !important;
-  }
+  .lightbox-hint  { display: none; } /* too cramped on tiny screens */
 }
 
 /* ══════════════════════════════════════
