@@ -5392,7 +5392,9 @@ function App() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
   const exportDropdownRef = useRef(null);
+  const lastPreviewTapRef = useRef(0);
   const [mobileTab, setMobileTab] = useState("editor");
+  const [lightboxScale, setLightboxScale] = useState(0.75);
   const [visitCount, setVisitCount] = useState(null);
 
   // 1. Global App Theme Switcher
@@ -5887,16 +5889,19 @@ function App() {
     [formData.departmentPreset]
   );
 
+  const paperPixelSize = useMemo(() => ({
+    width: 794 * (selectedPage.widthMm / 210),
+    height: 794 * (selectedPage.heightMm / 210)
+  }), [selectedPage.widthMm, selectedPage.heightMm]);
+
   useEffect(() => {
     const handleResize = () => {
       if (!containerRef.current) return;
       const isMobilePreview = window.matchMedia("(max-width: 768px)").matches;
       const cW = containerRef.current.clientWidth - (isMobilePreview ? 24 : 48);
       const cH = containerRef.current.clientHeight - (isMobilePreview ? 132 : 80);
-      const pW = 794 * (selectedPage.widthMm  / 210);
-      const pH = 794 * (selectedPage.heightMm / 210);
-      let s = Math.min(cW / pW, cH / pH);
-      if (formData.previewMode === "large" && !isMobilePreview) s = cW / pW;
+      let s = Math.min(cW / paperPixelSize.width, cH / paperPixelSize.height);
+      if (formData.previewMode === "large" && !isMobilePreview) s = cW / paperPixelSize.width;
       setScaleFactor(Math.min(Math.max(s, 0.12), 1.05));
     };
     const frame = requestAnimationFrame(handleResize);
@@ -5904,7 +5909,32 @@ function App() {
     const obs = new ResizeObserver(handleResize);
     if (containerRef.current) obs.observe(containerRef.current);
     return () => { cancelAnimationFrame(frame); window.removeEventListener("resize", handleResize); obs.disconnect(); };
-  }, [selectedPage.widthMm, selectedPage.heightMm, formData.previewMode, mobileTab]);
+  }, [paperPixelSize.width, paperPixelSize.height, formData.previewMode, mobileTab]);
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+
+    const updateLightboxScale = () => {
+      const isMobile = window.matchMedia("(max-width: 768px)").matches;
+      const availableWidth = window.innerWidth - (isMobile ? 24 : 64);
+      const availableHeight = window.innerHeight - (isMobile ? 112 : 96);
+      const nextScale = Math.min(
+        availableWidth / paperPixelSize.width,
+        availableHeight / paperPixelSize.height,
+        1
+      );
+
+      setLightboxScale(Math.max(nextScale, 0.25));
+    };
+
+    updateLightboxScale();
+    window.addEventListener("resize", updateLightboxScale);
+    window.addEventListener("orientationchange", updateLightboxScale);
+    return () => {
+      window.removeEventListener("resize", updateLightboxScale);
+      window.removeEventListener("orientationchange", updateLightboxScale);
+    };
+  }, [lightboxOpen, paperPixelSize.width, paperPixelSize.height]);
 
   /* 3D tilt */
   const handleMouseMove = useCallback((e) => {
@@ -5928,6 +5958,20 @@ function App() {
     cardRef.current.style.boxShadow = "0 22px 58px rgba(10,22,64,.18)";
   }, []);
 
+  const handlePreviewPointerUp = useCallback((event) => {
+    if (event.pointerType === "mouse") return;
+
+    const now = window.performance?.now?.() ?? Date.now();
+    if (now - lastPreviewTapRef.current < 360) {
+      event.preventDefault();
+      lastPreviewTapRef.current = 0;
+      setLightboxOpen(true);
+      return;
+    }
+
+    lastPreviewTapRef.current = now;
+  }, []);
+
   // Single paperStyle — used for both preview and lightbox
   const paperStyle = useMemo(() => ({
     "--content-scale": getContentScale(selectedPage),
@@ -5942,6 +5986,12 @@ function App() {
     width:  "var(--paper-width-px)",
     height: "var(--paper-height-px)"
   }), [selectedPage, formData.fontFamily, formData.headingFont, formData.bodyFont, formData.accentColor]);
+
+  const lightboxPageFrameStyle = useMemo(() => ({
+    "--lightbox-scale": lightboxScale,
+    width: `${paperPixelSize.width * lightboxScale}px`,
+    height: `${paperPixelSize.height * lightboxScale}px`
+  }), [lightboxScale, paperPixelSize.width, paperPixelSize.height]);
 
   const studentRows = useMemo(() => [
     [t(formData, "name"),     formData.submittedByName, "submittedByName"],
@@ -6391,6 +6441,12 @@ function App() {
             </svg>
             2D
           </button>
+          <button type="button" className="toolbar-btn" onClick={() => setLightboxOpen(true)} title="Open full preview">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+            </svg>
+            Full
+          </button>
           <div className="toolbar-divider" />
           <button type="button" className="toolbar-btn" onClick={handlePrint} title="Print or save as PDF">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -6463,9 +6519,11 @@ function App() {
               transform: `scale(${scaleFactor})`,
               transformOrigin: formData.previewMode === "large" ? "top center" : "center center",
               transition: "transform 0.15s ease-out",
-              cursor: "zoom-in"
+              cursor: "zoom-in",
+              touchAction: "manipulation"
             }}
             onDoubleClick={() => setLightboxOpen(true)}
+            onPointerUp={handlePreviewPointerUp}
             title="Double-click to enlarge"
           >
             {enabledPages.cover && (
@@ -6657,91 +6715,111 @@ function App() {
       {/* ════ LIGHTBOX (double-click zoom) ════ */}
       {lightboxOpen && (
         <Lightbox onClose={() => setLightboxOpen(false)} onPrint={handlePrint} exportFormats={exportFormats} exportCover={exportCover}>
-          <div className="lightbox-paper-wrap" style={{ display: "flex", flexDirection: "column", gap: "20px", alignItems: "center" }}>
+          <div className="lightbox-paper-wrap">
             {enabledPages.cover && (
-              <CoverPage
-                formData={formData}
-                updateField={updateField}
-                paperStyle={paperStyle}
-                studentRows={studentRows}
-                is3D={false}
-                cardRef={null}
-                selectedPage={selectedPage}
-                showRulers={showRulers}
-                showGrid={showGrid}
-                showGuides={showGuides}
-                isEditable={false}
-              />
+              <div className="lightbox-page-frame" style={lightboxPageFrameStyle}>
+                <CoverPage
+                  formData={formData}
+                  updateField={updateField}
+                  paperStyle={paperStyle}
+                  studentRows={studentRows}
+                  is3D={false}
+                  cardRef={null}
+                  selectedPage={selectedPage}
+                  showRulers={showRulers}
+                  showGrid={showGrid}
+                  showGuides={showGuides}
+                  isEditable={false}
+                />
+              </div>
             )}
             {enabledPages.acknowledgement && (
-              <AcknowledgementPage
-                paperStyle={paperStyle}
-                ackData={ackData}
-                setAckData={setAckData}
-                showRulers={showRulers}
-                showGrid={showGrid}
-                showGuides={showGuides}
-                selectedPage={selectedPage}
-                formData={formData}
-                pageOffset={pageOffsets.acknowledgement}
-                isEditable={false}
-              />
+              <div className="lightbox-page-frame" style={lightboxPageFrameStyle}>
+                <AcknowledgementPage
+                  paperStyle={paperStyle}
+                  ackData={ackData}
+                  setAckData={setAckData}
+                  showRulers={showRulers}
+                  showGrid={showGrid}
+                  showGuides={showGuides}
+                  selectedPage={selectedPage}
+                  formData={formData}
+                  pageOffset={pageOffsets.acknowledgement}
+                  isEditable={false}
+                />
+              </div>
             )}
             {enabledPages.transmittal && (
-              <TransmittalPage
-                formData={formData}
-                paperStyle={paperStyle}
-                transmittalData={transmittalData}
-                setTransmittalData={setTransmittalData}
-                showRulers={showRulers}
-                showGrid={showGrid}
-                showGuides={showGuides}
-                selectedPage={selectedPage}
-                pageOffset={pageOffsets.transmittal}
-                isEditable={false}
-              />
+              <div className="lightbox-page-frame" style={lightboxPageFrameStyle}>
+                <TransmittalPage
+                  formData={formData}
+                  paperStyle={paperStyle}
+                  transmittalData={transmittalData}
+                  setTransmittalData={setTransmittalData}
+                  showRulers={showRulers}
+                  showGrid={showGrid}
+                  showGuides={showGuides}
+                  selectedPage={selectedPage}
+                  pageOffset={pageOffsets.transmittal}
+                  isEditable={false}
+                />
+              </div>
             )}
             {enabledPages.toc && (
-              <TocPage
-                paperStyle={paperStyle}
-                tocData={tocData}
-                showRulers={showRulers}
-                showGrid={showGrid}
-                showGuides={showGuides}
-                selectedPage={selectedPage}
-                onTocClick={handleTocClick}
-                formData={formData}
-                pageOffset={pageOffsets.toc}
-              />
+              <div className="lightbox-page-frame" style={lightboxPageFrameStyle}>
+                <TocPage
+                  paperStyle={paperStyle}
+                  tocData={tocData}
+                  showRulers={showRulers}
+                  showGrid={showGrid}
+                  showGuides={showGuides}
+                  selectedPage={selectedPage}
+                  onTocClick={handleTocClick}
+                  formData={formData}
+                  pageOffset={pageOffsets.toc}
+                />
+              </div>
             )}
             {enabledPages.abstract && (
-              <AbstractPage
-                paperStyle={paperStyle}
-                showRulers={showRulers}
-                showGrid={showGrid}
-                showGuides={showGuides}
-                selectedPage={selectedPage}
-                abstractData={abstractData}
-                setAbstractData={setAbstractData}
-                formData={formData}
-                pageOffset={pageOffsets.abstract}
-                isEditable={false}
-              />
+              <div className="lightbox-page-frame" style={lightboxPageFrameStyle}>
+                <AbstractPage
+                  paperStyle={paperStyle}
+                  showRulers={showRulers}
+                  showGrid={showGrid}
+                  showGuides={showGuides}
+                  selectedPage={selectedPage}
+                  abstractData={abstractData}
+                  setAbstractData={setAbstractData}
+                  formData={formData}
+                  pageOffset={pageOffsets.abstract}
+                  isEditable={false}
+                />
+              </div>
             )}
             {enabledPages.rubric && (
-              <RubricPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} rubricRows={rubricRows} formData={formData} pageOffset={pageOffsets.rubric} />
+              <div className="lightbox-page-frame" style={lightboxPageFrameStyle}>
+                <RubricPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} rubricRows={rubricRows} formData={formData} pageOffset={pageOffsets.rubric} />
+              </div>
             )}
             {enabledPages.references && (
-              <ReferencesPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} referencesData={referencesData} formData={formData} pageOffset={pageOffsets.references} />
+              <div className="lightbox-page-frame" style={lightboxPageFrameStyle}>
+                <ReferencesPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} referencesData={referencesData} formData={formData} pageOffset={pageOffsets.references} />
+              </div>
             )}
             {enabledPages.labInfo && (
-              <LabInfoPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} labInfoData={labInfoData} formData={formData} pageOffset={pageOffsets.labInfo} />
+              <div className="lightbox-page-frame" style={lightboxPageFrameStyle}>
+                <LabInfoPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} labInfoData={labInfoData} formData={formData} pageOffset={pageOffsets.labInfo} />
+              </div>
             )}
             {enabledPages.appendix && (
-              <AppendixPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} appendixData={appendixData} formData={formData} pageOffset={pageOffsets.appendix} />
+              <div className="lightbox-page-frame" style={lightboxPageFrameStyle}>
+                <AppendixPage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} appendixData={appendixData} formData={formData} pageOffset={pageOffsets.appendix} />
+              </div>
             )}
             {enabledPages.certificate && (
-              <CertificatePage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} formData={formData} pageOffset={pageOffsets.certificate} />
+              <div className="lightbox-page-frame" style={lightboxPageFrameStyle}>
+                <CertificatePage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} formData={formData} pageOffset={pageOffsets.certificate} />
+              </div>
             )}
           </div>
         </Lightbox>

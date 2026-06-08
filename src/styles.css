@@ -2241,19 +2241,21 @@ footer p {
 }
 
 .lightbox-paper-wrap {
-  /* Scale the paper to fit the viewport nicely */
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   transform-origin: top center;
 }
 
-.lightbox-paper-wrap .paper {
-  /* In lightbox we want to view it full size / near full */
-  --content-scale: 0.85;
-  transform: scale(0.75);
-  transform-origin: top center;
+.lightbox-page-frame {
+  flex: 0 0 auto;
+  position: relative;
 }
 
-@media (min-width: 900px) {
-  .lightbox-paper-wrap .paper { transform: scale(0.9); }
+.lightbox-page-frame > .paper {
+  transform: scale(var(--lightbox-scale));
+  transform-origin: top left;
 }
 
 .lightbox-close {
@@ -2595,7 +2597,9 @@ footer p {
   .preview-toolbar {
     left: 50%;
     max-width: calc(100vw - 20px);
-    overflow-x: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    overflow: visible;
     top: 10px;
     transform: translateX(-50%);
     padding: 4px 8px;
@@ -2632,8 +2636,28 @@ footer p {
   .status-bar      { font-size: 0.6rem; bottom: 8px; gap: 4px; }
 
   /* Lightbox on mobile */
-  .lightbox-content { max-height: 95vh; max-width: 97vw; }
-  .lightbox-hint    { font-size: 0.7rem; padding: 6px 12px; bottom: 14px; }
+  .lightbox-content {
+    max-height: calc(100vh - 86px);
+    max-width: calc(100vw - 18px);
+  }
+
+  .lightbox-hint {
+    bottom: 10px;
+    flex-wrap: wrap;
+    font-size: 0.7rem;
+    justify-content: center;
+    left: 10px;
+    max-width: calc(100vw - 20px);
+    padding: 6px 10px;
+    right: 10px;
+    transform: none;
+    white-space: normal;
+  }
+
+  .toolbar-dropdown.lightbox-dropdown {
+    max-width: calc(100vw - 28px);
+    width: 240px;
+  }
 }
 
 /* ══════════════════════════════════════
@@ -2664,7 +2688,7 @@ footer p {
   .mobile-tab svg { width: 14px; height: 14px; }
 
   .lightbox-close { width: 36px; height: 36px; top: 10px; right: 10px; }
-  .lightbox-hint  { display: none; } /* too cramped on tiny screens */
+  .lightbox-hint  { gap: 5px; }
 }
 
 /* ══════════════════════════════════════
