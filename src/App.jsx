@@ -60,8 +60,8 @@ const defaultData = {
   experimentNoLabelType: "default",
   customExperimentNoLabel: "",
   experimentDate: "17 May 2026",
-  teacherName: "SAKIB AL HASAN",
-  teacherTitle: "Associate Professor",
+  teacherName: "MOHAMMAD DIDARUL ISLAM",
+  teacherTitle: "Lecturer",
   teacherDepartment: "Department of Computer Science and Engineering",
   submittedByName: "Ashikur Rahman Joy",
   status: "Undergraduate Student",
@@ -5502,8 +5502,8 @@ function App() {
 
   const [transmittalData, setTransmittalData] = useState({
     date: getFormattedCurrentDate(),
-    recipientName: "SAKIB AL HASAN",
-    recipientTitle: "Associate Professor",
+    recipientName: "MOHAMMAD DIDARUL ISLAM",
+    recipientTitle: "Lecturer",
     recipientDept: "Department of Computer Science and Engineering",
     subject: "Submission of Lab Report",
     salutation: "Dear Sir,",
