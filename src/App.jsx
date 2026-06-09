@@ -31,6 +31,18 @@ const FONT_MAPPING = {
   firacode: '"Fira Code", Courier New, Courier, monospace'
 };
 
+function getFormattedCurrentDate() {
+  const date = new Date();
+  const day = date.getDate();
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  const monthName = months[date.getMonth()];
+  const year = date.getFullYear();
+  return `${day} ${monthName} ${year}`;
+}
+
 const defaultData = {
   pageSize: "a4",
   customWidthMm: "210",
@@ -51,15 +63,15 @@ const defaultData = {
   teacherName: "SAKIB AL HASAN",
   teacherTitle: "Associate Professor",
   teacherDepartment: "Department of Computer Science and Engineering",
-  submittedByName: "SAKIB AL HASAN",
+  submittedByName: "Ashikur Rahman Joy",
   status: "Undergraduate Student",
   year: "3rd",
   semester: "1st",
   group: "",
   session: "",
-  roll: "UG02-69-26-xxx",
+  roll: "UG02-69-26-006",
   registration: "",
-  submissionDate: "20 May 2026",
+  submissionDate: getFormattedCurrentDate(),
   showDepartmentLogo: false,
   departmentLogoUrl: CSE_IMAGE_URL,
   layoutTheme: "classic",
@@ -5489,7 +5501,7 @@ function App() {
   });
 
   const [transmittalData, setTransmittalData] = useState({
-    date: "20 May 2026",
+    date: getFormattedCurrentDate(),
     recipientName: "SAKIB AL HASAN",
     recipientTitle: "Associate Professor",
     recipientDept: "Department of Computer Science and Engineering",
