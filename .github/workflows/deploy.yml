@@ -35,6 +35,9 @@ jobs:
         env:
           VITE_BASE_URL: /SUB-LAB-COVER-LETTER/
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          VITE_OPENROUTER_API_KEY: ${{ secrets.VITE_OPENROUTER_API_KEY }}
+          VITE_GROQ_API_KEY: ${{ secrets.VITE_GROQ_API_KEY }}
+          VITE_HF_API_KEY: ${{ secrets.VITE_HF_API_KEY }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

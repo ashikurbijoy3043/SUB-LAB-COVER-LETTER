@@ -3285,4 +3285,13 @@ footer p {
   color: #4f46e5;
 }
 
+/* ── AI Processing Overlay Animations ── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
 
+@keyframes aiProgressBar {
+  from { width: 15%; }
+  to   { width: 95%; }
+}

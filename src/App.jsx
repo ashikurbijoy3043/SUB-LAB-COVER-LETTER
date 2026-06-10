@@ -456,7 +456,7 @@ const exportFormats = [
   { id: "zip", label: "ZIP bundle", hint: "PDF + DOCX together" }
 ];
 
-const pageRenderOrder = ["cover", "acknowledgement", "transmittal", "toc", "abstract", "rubric", "references", "labInfo", "appendix", "certificate"];
+const pageRenderOrder = ["cover", "acknowledgement", "transmittal", "toc", "abstract", "rubric", "references", "labInfo", "appendix", "certificate", "uploadedImagePage", "postLabAnswersPage"];
 
 const pageSizes = [
   { id: "a4",     label: "A4",     widthMm: 210, heightMm: 297 },
@@ -2039,6 +2039,110 @@ function AppendixPage({ paperStyle, showRulers, showGrid, showGuides, selectedPa
   );
 }
 
+/* ═══ UPLOADED REPORT PAGE ═══ */
+function UploadedReportPage({ paperStyle, showRulers, showGrid, showGuides, selectedPage, cardRef, imageUrl, pageOffset = 0, formData }) {
+  return (
+    <div className="paper" style={paperStyle} ref={cardRef} data-page-key="uploadedImagePage">
+      <div className="paper-texture" /><div className="paper-edge-left" /><div className="paper-edge-bottom" />
+      {showGrid && <div className="paper-grid-overlay no-print" data-html2canvas-ignore="true" />}
+      {showGuides && <div className="paper-guides-overlay no-print" data-html2canvas-ignore="true" />}
+      <div className="academic-page" id="page-uploaded-report" style={{ display: "flex", flexDirection: "column", height: "100%", padding: 0 }}>
+        <div style={{ flexGrow: 1, display: "flex", justifyContent: "center", alignItems: "center", overflow: "hidden" }}>
+          {imageUrl ? (
+            <img src={imageUrl} alt="Uploaded Lab Report" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
+          ) : (
+            <div style={{ color: "var(--text-secondary)", textAlign: "center" }}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: "0 auto 12px", display: "block" }}>
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              No report image uploaded yet.
+            </div>
+          )}
+        </div>
+      </div>
+      <PageNumber formData={formData} offset={pageOffset} />
+    </div>
+  );
+}
+
+/* ═══ POST-LAB ANSWERS PAGE ═══ */
+function PostLabAnswersPage({ paperStyle, showRulers, showGrid, showGuides, selectedPage, cardRef, answersText, pageOffset = 0, formData }) {
+  const cleanMathText = (text) => {
+    if (!text) return "";
+    return text
+      // Remove LaTeX math block delimiters
+      .replace(/\$\$/g, "")
+      .replace(/\$/g, "")
+      // Replace common LaTeX math commands
+      .replace(/\\sum\b/g, "Σ")
+      .replace(/\\Sigma\b/g, "Σ")
+      .replace(/\\times\b/g, " × ")
+      .replace(/\\cdot\b/g, " · ")
+      .replace(/\\text\{([^}]+)\}/g, "$1")
+      .replace(/_\{([^}]+)\}/g, "_$1")
+      .replace(/\^\{([^}]+)\}/g, "^$1")
+      .replace(/\\Delta\b/g, "Δ")
+      .replace(/\\Omega\b/g, "Ω")
+      .replace(/\\mu\b/g, "μ")
+      .replace(/\\pi\b/g, "π")
+      .replace(/\\approx\b/g, "≈")
+      .replace(/\\le\b/g, "≤")
+      .replace(/\\ge\b/g, "≥")
+      .replace(/\\neq\b/g, "≠");
+  };
+
+  const formatAnswers = (text) => {
+    if (!text) return <p style={{ fontStyle: "italic", color: "#888", marginTop: "40px", textAlign: "center" }}>No post-lab answers generated yet. Upload an image to auto-generate.</p>;
+
+    const parseInlineStyles = (txt) => {
+      if (!txt) return "";
+      const parts = txt.split(/\*\*([\s\S]*?)\*\*/g);
+      return parts.map((part, i) => {
+        if (i % 2 === 1) {
+          return <strong key={i} style={{ fontWeight: "700" }}>{part}</strong>;
+        }
+        return part;
+      });
+    };
+
+    const cleanedText = cleanMathText(text);
+    const lines = cleanedText.split("\n");
+    return lines.map((line, idx) => {
+      const trimmed = line.trim();
+      // Bold question line patterns: **1. Why...** or 1. **Why...** or ++Why...++
+      if (trimmed.match(/^\*\*\d+\.|^\d+\.\s*\*\*/) || trimmed.startsWith("### ") || trimmed.match(/^\d+\.\s+Question/i) || (trimmed.startsWith("++") && trimmed.endsWith("++"))) {
+        const clean = trimmed.replace(/^\*\*|\*\*$/g, "").replace(/^\+\+|\+\+$/g, "").replace(/^###\s*/, "").trim();
+        return <p key={idx} style={{ margin: "14px 0 6px", fontSize: "0.95em", fontWeight: "700", color: "#1e3a5f", lineHeight: "1.5" }}>{parseInlineStyles(clean)}</p>;
+      } else if (trimmed.startsWith("**Answer") || trimmed === "**Answer:**" || trimmed === "**Answer**") {
+        return <p key={idx} style={{ margin: "4px 0 4px", fontSize: "0.9em", fontWeight: "700", color: "#475569", fontStyle: "italic" }}>Answer:</p>;
+      } else if (trimmed.startsWith("-") || (trimmed.startsWith("*") && !trimmed.startsWith("**"))) {
+        const cleanBullet = trimmed.replace(/^[-*]\s*/, "").trim();
+        return <p key={idx} style={{ margin: "3px 0 3px 14px", fontSize: "0.9em", lineHeight: "1.55" }}>• {parseInlineStyles(cleanBullet)}</p>;
+      } else if (trimmed) {
+        return <p key={idx} style={{ margin: "5px 0", fontSize: "0.9em", lineHeight: "1.6", textAlign: "justify" }}>{parseInlineStyles(trimmed)}</p>;
+      }
+      return <div key={idx} style={{ height: "4px" }} />;
+    });
+  };
+
+  return (
+    <div className="paper" style={paperStyle} ref={cardRef} data-page-key="postLabAnswersPage">
+      <div className="paper-texture" /><div className="paper-edge-left" /><div className="paper-edge-bottom" />
+      {showGrid && <div className="paper-grid-overlay no-print" data-html2canvas-ignore="true" />}
+      {showGuides && <div className="paper-guides-overlay no-print" data-html2canvas-ignore="true" />}
+      <div className="academic-page" id="page-post-lab-answers" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+        <h2 className="page-title">POST LAB QUESTION ANSWERS</h2>
+        <div style={{ flexGrow: 1, overflow: "hidden", fontSize: "0.95em", paddingTop: "4px" }}>
+          {formatAnswers(answersText)}
+        </div>
+      </div>
+      <PageNumber formData={formData} offset={pageOffset} />
+    </div>
+  );
+}
+
 /* ═══ CERTIFICATE OF ORIGINALITY PAGE ═══ */
 function CertificatePage({ paperStyle, showRulers, showGrid, showGuides, selectedPage, cardRef, formData, pageOffset = 0 }) {
   return (
@@ -2293,7 +2397,37 @@ function EditorForm({
   setAppendixData,
   exportShareUrl,
   geminiApiKey,
-  setGeminiApiKey
+  setGeminiApiKey,
+  openRouterApiKey,
+  setOpenRouterApiKey,
+  groqApiKey,
+  setGroqApiKey,
+  aiVisionEngine,
+  setAiVisionEngine,
+  aiTextEngine,
+  setAiTextEngine,
+  groqGenerationMode,
+  setGroqGenerationMode,
+  uploadedReportImages,
+  setUploadedReportImages,
+  postLabAnswers,
+  setPostLabAnswers,
+  isProcessingReportSheet,
+  setIsProcessingReportSheet,
+  postLabDetailLevel,
+  postLabPages,
+  changePostLabDetailLevel,
+  changePostLabPages,
+  geminiVisionModel,
+  setGeminiVisionModel,
+  geminiTextModel,
+  setGeminiTextModel,
+  huggingFaceApiKey,
+  setHuggingFaceApiKey,
+  huggingFaceTextModel,
+  setHuggingFaceTextModel,
+  huggingFaceVisionModel,
+  setHuggingFaceVisionModel
 }) {
   const [commandQuery, setCommandQuery] = useState("");
   const [commandCategory, setCommandCategory] = useState("all");
@@ -2317,6 +2451,933 @@ function EditorForm({
   const [reportDraftText, setReportDraftText] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
+
+  // drag-and-drop report sheet handler
+  const handleReportSheetUpload = (files) => {
+    if (!files) return;
+    const fileList = Array.isArray(files) ? files : [files];
+    if (fileList.length === 0) return;
+
+    let processed = 0;
+    const newImages = [];
+
+    fileList.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        newImages.push(e.target.result);
+        processed++;
+
+        if (processed === fileList.length) {
+          setUploadedReportImages(prev => [...prev, ...newImages]);
+
+          setEnabledPages(prev => ({
+            ...prev,
+            uploadedImagePage: true
+          }));
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const processReportSheet = async (base64Image) => {
+    const resolvedVisionKey = openRouterApiKey?.trim() || import.meta.env.VITE_OPENROUTER_API_KEY?.trim();
+    const resolvedTextKey = aiTextEngine === "groq"
+      ? (groqApiKey?.trim() || import.meta.env.VITE_GROQ_API_KEY?.trim())
+      : (aiTextEngine === "huggingface"
+        ? (huggingFaceApiKey?.trim() || import.meta.env.VITE_HF_API_KEY?.trim())
+        : (openRouterApiKey?.trim() || import.meta.env.VITE_OPENROUTER_API_KEY?.trim()));
+    const resolvedGeminiKey = geminiApiKey?.trim() || DEFAULT_GEMINI_API_KEY;
+    const resolvedHuggingFaceKey = huggingFaceApiKey?.trim() || import.meta.env.VITE_HF_API_KEY?.trim();
+
+    if (aiVisionEngine === "huggingface" && !resolvedHuggingFaceKey && !resolvedGeminiKey) {
+      Swal.fire({
+        title: "Hugging Face Token Required",
+        html: `<div style="text-align:left;font-size:0.85rem;line-height:1.6;color:#94a3b8">
+          <p style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">Hugging Face User Access Token is missing for OCR.</p>
+          <strong>How to add it:</strong>
+          <ol style="margin:6px 0 0 0;padding-left:16px;">
+            <li>Go to the <strong>AI Auto-Fill &amp; Post-Lab</strong> section in the sidebar.</li>
+            <li>Enter your Hugging Face Token (starts with <code>hf_...</code>) or save it in your environment.</li>
+          </ol>
+        </div>`,
+        icon: "warning",
+        background: "#0f172a",
+        color: "#e8f0ff",
+        confirmButtonColor: "#2563eb"
+      });
+      return;
+    }
+
+    if (aiTextEngine === "huggingface" && !resolvedHuggingFaceKey && !resolvedGeminiKey) {
+      Swal.fire({
+        title: "Hugging Face Token Required",
+        html: `<div style="text-align:left;font-size:0.85rem;line-height:1.6;color:#94a3b8">
+          <p style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">Hugging Face User Access Token is missing.</p>
+          <strong>How to add it:</strong>
+          <ol style="margin:6px 0 0 0;padding-left:16px;">
+            <li>Go to the <strong>AI Auto-Fill &amp; Post-Lab</strong> section in the sidebar.</li>
+            <li>Enter your Hugging Face Token (starts with <code>hf_...</code>) or save it in your environment.</li>
+          </ol>
+        </div>`,
+        icon: "warning",
+        background: "#0f172a",
+        color: "#e8f0ff",
+        confirmButtonColor: "#2563eb"
+      });
+      return;
+    }
+
+    if (aiVisionEngine === "gemini" && !resolvedGeminiKey) {
+      Swal.fire({
+        title: "Gemini API Key Required",
+        html: `<div style="text-align:left;font-size:0.85rem;line-height:1.6;color:#94a3b8">
+          <p style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">Gemini API Key is missing for OCR.</p>
+          <strong>How to add it:</strong>
+          <ol style="margin:6px 0 0 0;padding-left:16px;">
+            <li>Go to the <strong>AI Auto-Fill &amp; Post-Lab</strong> section in the sidebar.</li>
+            <li>Enter your Gemini key (starts with <code>AIzaSy...</code>) or save it in your local environment.</li>
+          </ol>
+        </div>`,
+        icon: "warning",
+        background: "#0f172a",
+        color: "#e8f0ff",
+        confirmButtonColor: "#2563eb"
+      });
+      return;
+    }
+
+    if (aiTextEngine === "gemini" && !resolvedGeminiKey) {
+      Swal.fire({
+        title: "Gemini API Key Required",
+        html: `<div style="text-align:left;font-size:0.85rem;line-height:1.6;color:#94a3b8">
+          <p style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">Gemini API Key is missing for report generation.</p>
+          <strong>How to add it:</strong>
+          <ol style="margin:6px 0 0 0;padding-left:16px;">
+            <li>Go to the <strong>AI Auto-Fill &amp; Post-Lab</strong> section in the sidebar.</li>
+            <li>Enter your Gemini key (starts with <code>AIzaSy...</code>) or save it in your local environment.</li>
+          </ol>
+        </div>`,
+        icon: "warning",
+        background: "#0f172a",
+        color: "#e8f0ff",
+        confirmButtonColor: "#2563eb"
+      });
+      return;
+    }
+
+    if (aiVisionEngine === "openrouter" && !resolvedVisionKey) {
+      Swal.fire({
+        title: "OpenRouter API Key Required",
+        html: `<div style="text-align:left;font-size:0.85rem;line-height:1.6;color:#94a3b8">
+          <p style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">OpenRouter API Key is missing.</p>
+          <strong>How to add it:</strong>
+          <ol style="margin:6px 0 0 0;padding-left:16px;">
+            <li>Go to the <strong>AI Auto-Fill &amp; Post-Lab</strong> section in the sidebar.</li>
+            <li>Enter your OpenRouter key (starts with <code>sk-or-...</code>) or save it in your local environment.</li>
+          </ol>
+        </div>`,
+        icon: "warning",
+        background: "#0f172a",
+        color: "#e8f0ff",
+        confirmButtonColor: "#2563eb"
+      });
+      return;
+    }
+
+    if (aiTextEngine === "groq" && !resolvedTextKey) {
+      Swal.fire({
+        title: "Groq API Key Required",
+        html: `<div style="text-align:left;font-size:0.85rem;line-height:1.6;color:#94a3b8">
+          <p style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">Groq API Key is missing.</p>
+          <strong>How to add it:</strong>
+          <ol style="margin:6px 0 0 0;padding-left:16px;">
+            <li>Go to the <strong>AI Auto-Fill &amp; Post-Lab</strong> section in the sidebar.</li>
+            <li>Enter your Groq key (starts with <code>gsk_...</code>) or save it in your local environment.</li>
+          </ol>
+        </div>`,
+        icon: "warning",
+        background: "#0f172a",
+        color: "#e8f0ff",
+        confirmButtonColor: "#2563eb"
+      });
+      return;
+    }
+
+    if (aiTextEngine === "openrouter" && !resolvedTextKey) {
+      Swal.fire({
+        title: "OpenRouter API Key Required",
+        html: `<div style="text-align:left;font-size:0.85rem;line-height:1.6;color:#94a3b8">
+          <p style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">OpenRouter API Key is missing for report generation.</p>
+          <strong>How to add it:</strong>
+          <ol style="margin:6px 0 0 0;padding-left:16px;">
+            <li>Go to the <strong>AI Auto-Fill &amp; Post-Lab</strong> section in the sidebar.</li>
+            <li>Enter your OpenRouter key (starts with <code>sk-or-...</code>).</li>
+          </ol>
+        </div>`,
+        icon: "warning",
+        background: "#0f172a",
+        color: "#e8f0ff",
+        confirmButtonColor: "#2563eb"
+      });
+      return;
+    }
+
+    setIsProcessingReportSheet(true);
+    Swal.fire({
+      title: "🔍 Analyzing Lab Sheet",
+      html: `<div style="text-align:left;font-size:0.85rem;color:#94a3b8;line-height:1.8">
+        <div style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">Step 1 of 2 — OCR &amp; Auto-Fill</div>
+        Scanning image with AI vision model…
+      </div>`,
+      allowOutsideClick: false,
+      showConfirmButton: false,
+      background: "#0f172a",
+      color: "#e8f0ff",
+      didOpen: () => Swal.showLoading()
+    });
+
+    try {
+      const base64Clean = base64Image.split(",")[1];
+      const mimeType = base64Image.split(";")[0].split(":")[1] || "image/jpeg";
+
+      const FREE_VISION_MODELS = [
+        "google/gemma-4-31b-it:free",
+        "google/gemma-4-26b-a4b-it:free",
+        "nvidia/nemotron-nano-12b-v2-vl:free",
+        "moonshotai/kimi-k2.6:free",
+        "nex-agi/nex-n2-pro:free",
+        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+        "openrouter/free"
+      ];
+
+      const visionPrompt = `Analyze this lab report sheet image and return a JSON object containing two main keys:
+1. "fields": key-value pairs representing the extracted metadata from the cover page / header:
+   - "department": The department name (e.g. "Computer Science and Engineering")
+   - "courseTitle": The course name (e.g. "Electrical Circuit Analysis Lab")
+   - "courseCode": The course code (e.g. "EEE 1102")
+   - "experimentNo": The experiment number (e.g. "02")
+   - "experimentTitle": The experiment name (e.g. "Experimental Methods for Constructing Basic Circuits")
+   - "teacherName": The course instructor / teacher name (e.g. "Mohammad Didarul Islam")
+   - "submittedByName": The student name (e.g. "JOY")
+   - "roll": The student roll number (e.g. "UG02-69-26-006")
+   - "submissionDate": The date mentioned on the sheet (e.g. "02/06/2026")
+
+2. "extractedQuestions": The exact text of the "Post Lab Questions" or "Post Lab Report Question Answer" written at the bottom of the page. If none are visible, return "".
+
+Respond ONLY with the JSON object wrapped in a markdown code block starting with \`\`\`json and ending with \`\`\`. Do not include any other text.`;
+
+      let step1Result = null;
+      let lastError = "";
+
+      if (aiVisionEngine === "gemini") {
+        const GEMINI_FALLBACK_MODELS = [
+          "gemini-2.5-flash",
+          "gemini-3-flash-preview",
+          "gemini-3.5-flash",
+          "gemini-2.0-flash",
+          "gemini-2.5-pro",
+          "gemini-3-pro-preview"
+        ];
+        const modelsToTry = [
+          geminiVisionModel,
+          ...GEMINI_FALLBACK_MODELS.filter(m => m !== geminiVisionModel)
+        ];
+
+        for (const model of modelsToTry) {
+          try {
+            Swal.update({
+              html: `<div style="text-align:left;font-size:0.82rem;color:#94a3b8;line-height:1.8">
+                <div style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">Step 1 of 2 — OCR &amp; Auto-Fill</div>
+                Trying Gemini: <code style="color:#60a5fa">${model}</code>…
+              </div>`
+            });
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${resolvedGeminiKey}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [
+                    { text: visionPrompt },
+                    {
+                      inlineData: {
+                        mimeType: mimeType,
+                        data: base64Clean
+                      }
+                    }
+                  ]
+                }]
+              })
+            });
+
+            if (!response.ok) {
+              const errBody = await response.json().catch(() => ({}));
+              throw new Error(`HTTP ${response.status}: ${errBody.error?.message || "Error"}`);
+            }
+
+            const data = await response.json();
+            const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!reply) throw new Error("Empty response from Gemini model");
+
+            const jsonMatch = reply.match(/```json\s*([\s\S]*?)\s*```/) || reply.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              step1Result = JSON.parse((jsonMatch[1] || jsonMatch[0]).trim());
+              break;
+            }
+          } catch (e) {
+            console.error(`Gemini vision model ${model} failed:`, e);
+            lastError = e.message;
+          }
+        }
+      } else if (aiVisionEngine === "huggingface") {
+        const HF_VISION_FALLBACK_MODELS = [
+          "meta-llama/Llama-3.2-11B-Vision-Instruct",
+          "Qwen/Qwen2-VL-7B-Instruct",
+          "Salesforce/blip-image-captioning-large"
+        ];
+        const modelsToTry = [
+          huggingFaceVisionModel,
+          ...HF_VISION_FALLBACK_MODELS.filter(m => m !== huggingFaceVisionModel)
+        ];
+
+        for (const model of modelsToTry) {
+          try {
+            Swal.update({
+              html: `<div style="text-align:left;font-size:0.82rem;color:#94a3b8;line-height:1.8">
+                <div style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">Step 1 of 2 — OCR &amp; Auto-Fill</div>
+                Trying Hugging Face Vision: <code style="color:#60a5fa">${model.split('/')[1] || model}</code>…
+              </div>`
+            });
+
+            let response;
+            const isVLM = model.toLowerCase().includes("vision") || model.toLowerCase().includes("vl");
+
+            if (isVLM) {
+              response = await fetch(`https://router.huggingface.co/hf-inference/models/${model}`, {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${resolvedHuggingFaceKey}`,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  messages: [
+                    {
+                      role: "user",
+                      content: [
+                        { type: "text", text: visionPrompt },
+                        {
+                          type: "image_url",
+                          image_url: {
+                            url: `data:${mimeType};base64,${base64Clean}`
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                })
+              });
+            } else {
+              const binaryString = window.atob(base64Clean);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+              response = await fetch(`https://router.huggingface.co/hf-inference/models/${model}`, {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${resolvedHuggingFaceKey}`,
+                  "Content-Type": mimeType
+                },
+                body: bytes
+              });
+            }
+
+            if (!response.ok) {
+              const errJson = await response.json().catch(() => ({}));
+              throw new Error(`HTTP ${response.status}: ${errJson.error?.message || "Error"}`);
+            }
+
+            const data = await response.json();
+            let reply = "";
+            if (isVLM) {
+              reply = data.choices?.[0]?.message?.content || data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            } else {
+              reply = Array.isArray(data) ? data[0]?.generated_text : (data.generated_text || JSON.stringify(data));
+            }
+
+            if (!reply) throw new Error("Empty response from Hugging Face model");
+
+            const jsonMatch = reply.match(/```json\s*([\s\S]*?)\s*```/) || reply.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              step1Result = JSON.parse((jsonMatch[1] || jsonMatch[0]).trim());
+              break;
+            } else {
+              step1Result = {
+                fields: {},
+                extractedQuestions: reply
+              };
+              break;
+            }
+          } catch (e) {
+            console.error(`Hugging Face vision model ${model} failed:`, e);
+            lastError = e.message;
+          }
+        }
+      } else {
+        for (const model of FREE_VISION_MODELS) {
+          try {
+            Swal.update({ html: `<div style="text-align:left;font-size:0.82rem;color:#94a3b8;line-height:1.8"><div style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">Step 1 of 2 — OCR &amp; Auto-Fill</div>Trying model: <code style="color:#60a5fa">${model.split('/')[1] || model}</code>…</div>` });
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${resolvedVisionKey}`,
+                "HTTP-Referer": window.location.origin,
+                "X-Title": "SUB Lab Report Generator"
+              },
+              body: JSON.stringify({
+                model: model,
+                messages: [
+                  {
+                    role: "user",
+                    content: [
+                      { type: "text", text: visionPrompt },
+                      {
+                        type: "image_url",
+                        image_url: { url: `data:${mimeType};base64,${base64Clean}` }
+                      }
+                    ]
+                  }
+                ]
+              })
+            });
+
+            if (!response.ok) {
+              const errBody = await response.text();
+              throw new Error(`HTTP ${response.status}: ${errBody}`);
+            }
+
+            const data = await response.json();
+            if (data.error) throw new Error(data.error.message);
+
+            const reply = data?.choices?.[0]?.message?.content;
+            const jsonMatch = reply.match(/```json\s*([\s\S]*?)\s*```/) || reply.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              step1Result = JSON.parse((jsonMatch[1] || jsonMatch[0]).trim());
+              break;
+            }
+          } catch (e) {
+            console.error(`Vision model ${model} failed:`, e);
+            lastError = e.message;
+          }
+        }
+      }
+
+      if (!step1Result && resolvedGeminiKey) {
+        console.log("Primary vision engine failed. Running fallback to Google Gemini...");
+        const fallbackGeminiModels = [
+          "gemini-2.5-flash",
+          "gemini-2.0-flash",
+          "gemini-3-flash-preview",
+          "gemini-3.5-flash"
+        ];
+        for (const model of fallbackGeminiModels) {
+          try {
+            Swal.update({
+              html: `<div style="text-align:left;font-size:0.82rem;color:#94a3b8;line-height:1.8">
+                <div style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">Step 1 of 2 — OCR &amp; Auto-Fill (Backup)</div>
+                Trying Gemini backup model: <code style="color:#60a5fa">${model}</code>…
+              </div>`
+            });
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${resolvedGeminiKey}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [
+                    { text: visionPrompt },
+                    {
+                      inlineData: {
+                        mimeType: mimeType,
+                        data: base64Clean
+                      }
+                    }
+                  ]
+                }]
+              })
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (reply) {
+                const jsonMatch = reply.match(/```json\s*([\s\S]*?)\s*```/) || reply.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                  step1Result = JSON.parse((jsonMatch[1] || jsonMatch[0]).trim());
+                  break;
+                }
+              }
+            }
+          } catch (e) {
+            console.error(`Fallback Gemini model ${model} failed:`, e);
+          }
+        }
+      }
+
+      if (!step1Result) {
+        throw new Error(`All vision models returned rate limits or errors. Details: ${lastError}`);
+      }
+
+      // Autofill fields
+      if (step1Result.fields) {
+        const fields = step1Result.fields;
+        if (fields.department) updateField("department", fields.department);
+        if (fields.courseTitle) updateField("courseTitle", fields.courseTitle);
+        if (fields.courseCode) updateField("courseCode", fields.courseCode);
+        if (fields.experimentNo) updateField("experimentNo", fields.experimentNo);
+        if (fields.experimentTitle) updateField("reportTitle", fields.experimentTitle);
+        if (fields.teacherName) updateField("teacherName", fields.teacherName);
+        if (fields.submittedByName) updateField("submittedByName", fields.submittedByName);
+        if (fields.roll) updateField("roll", fields.roll);
+        if (fields.submissionDate) updateField("submissionDate", fields.submissionDate);
+      }
+
+      // Step 2: Answer post lab questions
+      let questions = step1Result.extractedQuestions;
+      if (Array.isArray(questions)) {
+        questions = questions.join("\n");
+      } else if (typeof questions === "object" && questions !== null) {
+        questions = JSON.stringify(questions);
+      } else if (typeof questions !== "string") {
+        questions = String(questions || "");
+      }
+
+      if (!questions || questions.toLowerCase().includes("answers not found") || questions.trim() === "") {
+        questions = "1. Why voltmeter connect in parallel and Ammeter connect in series?\n2. Why Resistance used in series with LED? Show that, sum P = 0, for fig.-01.";
+      }
+
+      Swal.update({
+        title: "✍️ Generating Answers",
+        html: `<div style="text-align:left;font-size:0.85rem;color:#94a3b8;line-height:1.8">
+          <div style="color:#10b981;font-weight:600;margin-bottom:6px;">✓ Step 1 done — Fields auto-filled!</div>
+          <div style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">Step 2 of 2 — Writing post-lab answers…</div>
+          Finding best free text model…
+        </div>`
+      });
+
+      const GROQ_TEXT_MODELS = [
+        "llama-3.3-70b-versatile",
+        "openai/gpt-oss-120b",
+        "qwen/qwen3-32b",
+        "llama-3.1-8b-instant",
+        "openai/gpt-oss-20b",
+        "groq/compound",
+        "groq/compound-mini",
+        "meta-llama/llama-4-scout-17b-16e-instruct",
+        "openai/gpt-oss-safeguard-20b",
+        "allam-2-7b"
+      ];
+
+      const OPENROUTER_TEXT_MODELS = [
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "qwen/qwen3-coder:free",
+        "meta-llama/llama-3.2-3b-instruct:free",
+        "google/gemma-4-31b-it:free",
+        "google/gemma-4-26b-a4b-it:free",
+        "nousresearch/hermes-3-llama-3.1-405b:free",
+        "z-ai/glm-4.5-air:free",
+        "qwen/qwen3-next-80b-a3b-instruct:free",
+        "openrouter/free"
+      ];
+
+      const activeTextModels = aiTextEngine === "groq" ? GROQ_TEXT_MODELS : OPENROUTER_TEXT_MODELS;
+      const apiEndpoint = aiTextEngine === "groq"
+        ? "https://api.groq.com/openai/v1/chat/completions"
+        : "https://openrouter.ai/api/v1/chat/completions";
+
+      const promptContent = `You are an expert academic assistant. Here are some post-lab report questions extracted from a lab sheet:
+"${questions}"
+
+For the course "${step1Result.fields?.courseTitle || "Electrical Circuit Analysis Lab"}" (${step1Result.fields?.courseCode || "EEE 1102"}), write a formal, well-structured, and humanized post-lab report containing the answers to these questions.
+
+Requirements:
+- Repeat each question in bold.
+- Provide a clear, detailed, academically accurate answer.
+- Make the writing tone natural, clear, and humanized. Use correct, clean, basic English grammar that reads like a smart student wrote it, avoiding overly verbose AI cliches (like "delve", "testament", "crucial role", "furthermore").
+- Explain any formulas step-by-step using standard plain text and standard math symbols (e.g. 'Σ P = 0', 'x' or '*' for multiplication, 'I^2' for squared current). Do NOT use LaTeX backslashes, LaTeX commands (like \\text{} or \\times), or dollar signs ($ or $$). Write everything in clean, human-readable normal text.
+${postLabDetailLevel === "basic" ? `- Make the answers extremely concise, clear, and to-the-point, answering only what is asked without any unnecessary elaborations or fluff. This is for a basic/concise report.` : ""}
+${postLabDetailLevel === "standard" ? `- Make the answers detailed and standard, explaining core concepts clearly with moderate/intermediate details. This is for a standard academic report.` : ""}
+${postLabDetailLevel === "detailed" ? `- Make the answers highly comprehensive, exhaustive, and rich in information. Include detailed explanations, step-by-step mathematical derivations, context, explanations of variables, and diagrams represented in text/ascii if appropriate. This is for a comprehensive report with maximum info.` : ""}
+${postLabPages === "auto" ? `- Format the output naturally. If the content is long and you feel it should span multiple pages, you may insert the text "[PAGE_BREAK]" on a line by itself at logical transition points (e.g., between questions) where a page break would make sense in a printed A4 report. Do not put anything else on that line.` : ""}
+${postLabPages !== "auto" ? `- Adjust the length of the generated answers so that it fills approximately ${postLabPages} page(s) of a standard A4 sheet.
+- You MUST partition the content into EXACTLY ${postLabPages} page(s) by inserting the marker "[PAGE_BREAK]" on a line by itself exactly ${Number(postLabPages) - 1} times at logical transition points (e.g., between questions).
+- Do not overflow the content of each page; ensure that each page's content is short/compact enough to fit comfortably on a single A4 page with standard margins.` : ""}
+- Output only the questions and answers. Do not include any greetings, markdown intro code blocks, or conversational chat text before/after the content.`;
+
+      let step2Result = "";
+
+      if (aiTextEngine === "groq" && groqGenerationMode === "consensus") {
+        Swal.update({
+          title: "✍️ Generating Answers (Ensemble)",
+          html: `<div style="text-align:left;font-size:0.85rem;color:#94a3b8;line-height:1.8">
+            <div style="color:#10b981;font-weight:600;margin-bottom:6px;">✓ Step 1 done — Fields auto-filled!</div>
+            <div style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">Running 10 Groq models in parallel…</div>
+            Gathering drafts for consensus…
+          </div>`
+        });
+
+        // Fire all 10 in parallel
+        const draftPromises = GROQ_TEXT_MODELS.map(async (model) => {
+          try {
+            const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${resolvedTextKey}`
+              },
+              body: JSON.stringify({
+                model: model,
+                messages: [
+                  {
+                    role: "user",
+                    content: `Solve these lab questions as a student with clear details: "${questions}"`
+                  }
+                ]
+              })
+            });
+
+            if (!res.ok) return null;
+            const data = await res.json();
+            const text = data?.choices?.[0]?.message?.content;
+            return text ? { model, content: text } : null;
+          } catch (e) {
+            console.error(`Parallel model ${model} failed:`, e);
+            return null;
+          }
+        });
+
+        const drafts = (await Promise.all(draftPromises)).filter(d => d !== null);
+
+        if (drafts.length === 0) {
+          throw new Error("All parallel Groq models failed to return a response. Please check your key or rate limits.");
+        }
+
+        Swal.update({
+          title: "✍️ Synthesizing & Humanizing",
+          html: `<div style="text-align:left;font-size:0.85rem;color:#94a3b8;line-height:1.8">
+            <div style="color:#10b981;font-weight:600;margin-bottom:6px;">✓ Parallel drafts gathered (${drafts.length} successful)</div>
+            <div style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">Synthesizing final report answers…</div>
+            Running humanizer pass…
+          </div>`
+        });
+
+        // Construct the consensus prompt
+        // Limit to top 3 drafts and truncate each to 1500 chars to avoid exceeding Groq TPM (Tokens Per Minute) limit (12,000 TPM on free tier)
+        const selectedDrafts = drafts.slice(0, 3);
+        const draftsCombinedText = selectedDrafts.map((d, idx) => `Draft ${idx + 1} (from ${d.model}):\n"""\n${d.content.slice(0, 1500)}\n"""`).join("\n\n");
+
+        const synthesisPrompt = `You are an expert consensus engine and professional academic humanizer. You have been given the same set of post-lab questions and ${selectedDrafts.length} different drafts generated by various AI models:
+
+Post-Lab Questions:
+"${questions}"
+
+Model Drafts:
+${draftsCombinedText}
+
+Your task:
+1. Compare all drafts. Extract the most accurate, factually correct facts, formulas, and reasoning.
+2. Combine and synthesize them into a single, perfectly detailed set of post-lab answers for the course "${step1Result.fields?.courseTitle || "Electrical Circuit Analysis Lab"}" (${step1Result.fields?.courseCode || "EEE 1102"}).
+3. Repeat each question in bold before its answer.
+4. **HUMANIZATION & TONE**: Write in a natural, clear, simple, and humanized style. Use correct, clean, basic English grammar that sounds like a smart student wrote it. Completely avoid AI buzzwords and cliches (e.g. "delve", "testament", "crucial role", "furthermore", "overall", "in conclusion").
+5. Explain any formulas step-by-step using standard plain text and standard math symbols (e.g. 'Σ P = 0', 'I^2' for squared current). Do NOT use LaTeX backslashes, LaTeX commands, or dollar signs ($ or $$). Write everything in clean, normal human-readable text.
+${postLabDetailLevel === "basic" ? `- Make the answers extremely concise, clear, and to-the-point, answering only what is asked without any unnecessary elaborations or fluff. This is for a basic/concise report.` : ""}
+${postLabDetailLevel === "standard" ? `- Make the answers detailed and standard, explaining core concepts clearly with moderate/intermediate details. This is for a standard academic report.` : ""}
+${postLabDetailLevel === "detailed" ? `- Make the answers highly comprehensive, exhaustive, and rich in information. Include detailed explanations, step-by-step mathematical derivations, context, explanations of variables, and diagrams represented in text/ascii if appropriate. This is for a comprehensive report with maximum info.` : ""}
+${postLabPages === "auto" ? `- Format the output naturally. If the content is long and you feel it should span multiple pages, you may insert the text "[PAGE_BREAK]" on a line by itself at logical transition points (e.g., between questions) where a page break would make sense in a printed A4 report. Do not put anything else on that line.` : ""}
+${postLabPages !== "auto" ? `- Adjust the length of the generated answers so that it fills approximately ${postLabPages} page(s) of a standard A4 sheet.
+- You MUST partition the content into EXACTLY ${postLabPages} page(s) by inserting the marker "[PAGE_BREAK]" on a line by itself exactly ${Number(postLabPages) - 1} times at logical transition points (e.g., between questions).
+- Do not overflow the content of each page; ensure that each page's content is short/compact enough to fit comfortably on a single A4 page with standard margins.` : ""}
+- Output only the final questions and answers. Do not include any greetings, introduction markdown block containers, or conversational chat text before/after.`;
+
+        // Send to Llama 3.3 70B for final synthesis
+        const synthesisResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${resolvedTextKey}`
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+              {
+                role: "user",
+                content: synthesisPrompt
+              }
+            ]
+          })
+        });
+
+        if (!synthesisResponse.ok) {
+          const errBody = await synthesisResponse.text();
+          throw new Error(`Synthesis failed: HTTP ${synthesisResponse.status}: ${errBody}`);
+        }
+
+        const synthesisData = await synthesisResponse.json();
+        if (synthesisData.error) throw new Error(synthesisData.error.message);
+
+        const reply = synthesisData?.choices?.[0]?.message?.content;
+        if (reply && reply.trim()) {
+          step2Result = reply.trim();
+        } else {
+          throw new Error("Synthesis model returned an empty response.");
+        }
+      } else if (aiTextEngine === "huggingface") {
+        const HF_FALLBACK_MODELS = [
+          "Qwen/Qwen2.5-Coder-32B-Instruct",
+          "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
+          "meta-llama/Llama-3.3-70B-Instruct",
+          "Qwen/Qwen2.5-72B-Instruct",
+          "meta-llama/Llama-3.1-70B-Instruct",
+          "meta-llama/Llama-3.1-8B-Instruct"
+        ];
+        const modelsToTry = [
+          huggingFaceTextModel,
+          ...HF_FALLBACK_MODELS.filter(m => m !== huggingFaceTextModel)
+        ];
+
+        for (const model of modelsToTry) {
+          try {
+            Swal.update({
+              html: `<div style="text-align:left;font-size:0.82rem;color:#94a3b8;line-height:1.8">
+                <div style="color:#10b981;font-weight:600;margin-bottom:4px;">✓ OCR done.</div>
+                <div style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">Step 2 of 2 — Writing answers</div>
+                Trying Hugging Face: <code style="color:#60a5fa">${model}</code>…
+              </div>`
+            });
+
+            const res = await fetch("https://router.huggingface.co/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${resolvedHuggingFaceKey}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                model: model,
+                messages: [
+                  { role: "user", content: promptContent }
+                ]
+              })
+            });
+
+            if (!res.ok) {
+              const errBody = await res.json().catch(() => ({}));
+              throw new Error(`HTTP ${res.status}: ${errBody.error?.message || "Error"}`);
+            }
+
+            const data = await res.json();
+            const reply = data?.choices?.[0]?.message?.content;
+            if (reply && reply.trim()) {
+              step2Result = reply.trim();
+              break;
+            }
+          } catch (e) {
+            console.error(`Hugging Face text model ${model} failed:`, e);
+            lastError = e.message;
+          }
+        }
+      } else if (aiTextEngine === "gemini") {
+        const GEMINI_FALLBACK_MODELS = [
+          "gemini-2.5-flash",
+          "gemini-3-flash-preview",
+          "gemini-3.5-flash",
+          "gemini-2.0-flash",
+          "gemini-2.5-pro",
+          "gemini-3-pro-preview"
+        ];
+        const modelsToTry = [
+          geminiTextModel,
+          ...GEMINI_FALLBACK_MODELS.filter(m => m !== geminiTextModel)
+        ];
+
+        for (const model of modelsToTry) {
+          try {
+            Swal.update({
+              html: `<div style="text-align:left;font-size:0.82rem;color:#94a3b8;line-height:1.8">
+                <div style="color:#10b981;font-weight:600;margin-bottom:4px;">✓ OCR done.</div>
+                <div style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">Step 2 of 2 — Writing answers</div>
+                Trying Gemini: <code style="color:#60a5fa">${model}</code>…
+              </div>`
+            });
+
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${resolvedGeminiKey}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [
+                    { text: promptContent }
+                  ]
+                }]
+              })
+            });
+
+            if (!res.ok) {
+              const errBody = await res.json().catch(() => ({}));
+              throw new Error(`HTTP ${res.status}: ${errBody.error?.message || "Error"}`);
+            }
+
+            const data = await res.json();
+            const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (reply && reply.trim()) {
+              step2Result = reply.trim();
+              break;
+            }
+          } catch (e) {
+            console.error(`Gemini text model ${model} failed:`, e);
+            lastError = e.message;
+          }
+        }
+      } else {
+        // Sequential fallback loop
+        for (const model of activeTextModels) {
+          try {
+            Swal.update({ html: `<div style="text-align:left;font-size:0.82rem;color:#94a3b8;line-height:1.8"><div style="color:#10b981;font-weight:600;margin-bottom:4px;">✓ OCR done.</div><div style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">Step 2 of 2 — Writing answers</div>Trying: <code style="color:#60a5fa">${model.split('/')[1] || model}</code>…</div>` });
+            const textResponse = await fetch(apiEndpoint, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${resolvedTextKey}`,
+                ...(aiTextEngine !== "groq" ? {
+                  "HTTP-Referer": window.location.origin,
+                  "X-Title": "SUB Lab Report Generator"
+                } : {})
+              },
+              body: JSON.stringify({
+                model: model,
+                messages: [
+                  {
+                    role: "user",
+                    content: promptContent
+                  }
+                ]
+              })
+            });
+
+            if (!textResponse.ok) {
+              const errBody = await textResponse.text();
+              throw new Error(`HTTP ${textResponse.status}: ${errBody}`);
+            }
+
+            const textData = await textResponse.json();
+            if (textData.error) throw new Error(textData.error.message);
+
+            const reply = textData?.choices?.[0]?.message?.content;
+            if (reply && reply.trim()) {
+              step2Result = reply.trim();
+              break;
+            }
+          } catch (e) {
+            console.error(`Text model ${model} failed:`, e);
+            lastError = e.message;
+          }
+        }
+      }
+
+      if (!step2Result && resolvedGeminiKey) {
+        console.log("Primary text engine failed. Running fallback to Google Gemini...");
+        const fallbackGeminiModels = [
+          "gemini-2.5-flash",
+          "gemini-2.0-flash",
+          "gemini-3-flash-preview",
+          "gemini-3.5-flash"
+        ];
+        for (const model of fallbackGeminiModels) {
+          try {
+            Swal.update({
+              html: `<div style="text-align:left;font-size:0.82rem;color:#94a3b8;line-height:1.8">
+                <div style="color:#10b981;font-weight:600;margin-bottom:4px;">✓ OCR done.</div>
+                <div style="color:#e8f0ff;font-weight:600;margin-bottom:8px;">Step 2 of 2 — Writing answers (Backup)</div>
+                Trying Gemini backup model: <code style="color:#60a5fa">${model}</code>…
+              </div>`
+            });
+
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${resolvedGeminiKey}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [
+                    { text: promptContent }
+                  ]
+                }]
+              })
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (reply && reply.trim()) {
+                step2Result = reply.trim();
+                break;
+              }
+            }
+          } catch (e) {
+            console.error(`Fallback Gemini text model ${model} failed:`, e);
+          }
+        }
+      }
+
+      if (!step2Result) {
+        throw new Error(`All free text models returned rate limits or errors. Details: ${lastError}`);
+      }
+
+      setPostLabAnswers(step2Result);
+
+
+      // Auto-enable pages in packager
+      setEnabledPages(prev => ({
+        ...prev,
+        uploadedImagePage: true,
+        postLabAnswersPage: true
+      }));
+
+      Swal.close();
+      Swal.fire({
+        title: "Processing Completed!",
+        text: "Your cover page details have been auto-filled, and the Report Sheet and Post-Lab pages have been created.",
+        icon: "success",
+        background: "#0f172a",
+        color: "#e8f0ff",
+        confirmButtonColor: "#10b981"
+      });
+    } catch (error) {
+      console.error(error);
+      Swal.close();
+      const isRateLimit = error?.message?.toLowerCase().includes("rate limit") || 
+                          error?.message?.toLowerCase().includes("429") || 
+                          error?.message?.toLowerCase().includes("rate-limited") ||
+                          error?.message?.toLowerCase().includes("overload");
+
+      Swal.fire({
+        title: isRateLimit ? "⚠️ Server is Overloaded" : "AI Analysis Failed",
+        html: isRateLimit 
+          ? `<div style="text-align:left;font-size:0.85rem;line-height:1.6;color:#94a3b8">
+              <p style="color:#e8f0ff;font-weight:600;font-size:0.92rem;margin-bottom:8px;">The free AI servers are currently busy or rate-limited.</p>
+              Please try again after a few moments. Free models have strict limits. Adding credits or retrying shortly usually resolves this.
+             </div>`
+          : undefined,
+        text: isRateLimit ? undefined : (error?.message || "Please check your network and API key, then try again."),
+        icon: "error",
+        background: "#0f172a",
+        color: "#e8f0ff",
+        confirmButtonColor: "#ef4444"
+      });
+    } finally {
+      setIsProcessingReportSheet(false);
+    }
+  };
 
   const [eqTemplate, setEqTemplate] = useState("fraction");
   const [eqParams, setEqParams] = useState({
@@ -3531,9 +4592,17 @@ function EditorForm({
                     <input type="checkbox" checked={enabledPages.appendix} onChange={(e) => setEnabledPages(prev => ({ ...prev, appendix: e.target.checked }))} />
                     <span>Appendix Divider</span>
                   </label>
-                  <label className="check-row">
+                  <label className="check-row" style={{ marginRight: "12px" }}>
                     <input type="checkbox" checked={enabledPages.certificate} onChange={(e) => setEnabledPages(prev => ({ ...prev, certificate: e.target.checked }))} />
                     <span>Certificate of Originality</span>
+                  </label>
+                  <label className="check-row" style={{ marginRight: "12px" }}>
+                    <input type="checkbox" checked={enabledPages.uploadedImagePage} onChange={(e) => setEnabledPages(prev => ({ ...prev, uploadedImagePage: e.target.checked }))} />
+                    <span>Original Report Sheet</span>
+                  </label>
+                  <label className="check-row">
+                    <input type="checkbox" checked={enabledPages.postLabAnswersPage} onChange={(e) => setEnabledPages(prev => ({ ...prev, postLabAnswersPage: e.target.checked }))} />
+                    <span>Post-Lab Answers</span>
                   </label>
                 </div>
               </div>
@@ -3860,6 +4929,22 @@ function EditorForm({
                   </label>
                   <label style={{ marginTop: "6px", display: "block" }}><span>Subtitle (optional)</span>
                     <input value={appendixData.subtitle || ""} onChange={(e) => setAppendixData(prev => ({ ...prev, subtitle: e.target.value }))} placeholder="e.g. Raw Data Tables" />
+                  </label>
+                </div>
+              )}
+
+              {/* Post-Lab Answers Editor */}
+              {enabledPages.postLabAnswersPage && (
+                <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "12px", marginTop: "8px" }}>
+                  <h4 style={{ fontSize: "0.85rem", fontWeight: "600", marginBottom: "8px", color: "var(--text-primary)" }}>Post-Lab Answers Details</h4>
+                  <label><span>Post-Lab Questions &amp; Answers (Editable Markdown)</span>
+                    <textarea
+                      value={postLabAnswers || ""}
+                      onChange={(e) => setPostLabAnswers(e.target.value)}
+                      placeholder="AI-generated post-lab answers will appear here..."
+                      rows="8"
+                      style={{ width: "100%", fontSize: "0.82rem", padding: "8px 10px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "6px", color: "var(--text-primary)", resize: "vertical" }}
+                    />
                   </label>
                 </div>
               )}
@@ -5249,6 +6334,396 @@ function EditorForm({
         )}
       </div>
 
+      {/* AI Lab Report Auto-Fill (OpenRouter) */}
+      <div className={`accordion-item ${activeSection === "ai-autofill" ? "active" : ""}`}>
+        <button type="button" className="accordion-header" onClick={() => toggleSection("ai-autofill")}>
+          <span className="accordion-title-wrapper">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+            </svg>
+            <span>AI Auto-Fill &amp; Post-Lab</span>
+          </span>
+          <svg className="accordion-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+        </button>
+        {activeSection === "ai-autofill" && (
+          <div className="accordion-content">
+            <div className="profile-instructions" style={{ background: "rgba(16, 185, 129, 0.05)", borderLeft: "3px solid #10b981", padding: "8px 12px", borderRadius: "4px", marginBottom: "12px", fontSize: "0.78rem" }}>
+              <strong>How to use AI Auto-Fill:</strong>
+              <ol style={{ margin: "6px 0 0 0", paddingLeft: "16px", lineHeight: "1.6" }}>
+                <li>Upload one or more photos of your lab report sheet below.</li>
+                <li>Choose your detail level and target page count.</li>
+                <li>Click <strong>Analyze &amp; Generate Lab Reports</strong> to start.</li>
+              </ol>
+            </div>
+
+            {/* AI Engine Selection */}
+            <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
+              <div style={{ flex: 1 }}>
+                <label><span style={{ display: "block", marginBottom: "4px", fontSize: "0.75rem", fontWeight: "600", color: "var(--text-secondary)" }}>Vision Engine (OCR)</span>
+                  <select
+                    value={aiVisionEngine}
+                    onChange={(e) => setAiVisionEngine(e.target.value)}
+                    style={{ width: "100%", fontSize: "0.8rem", padding: "8px 10px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "6px", color: "var(--text-primary)" }}
+                  >
+                    <option value="openrouter">OpenRouter Free</option>
+                    <option value="gemini">Google Gemini</option>
+                    <option value="huggingface">Hugging Face Free</option>
+                  </select>
+                </label>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label><span style={{ display: "block", marginBottom: "4px", fontSize: "0.75rem", fontWeight: "600", color: "var(--text-secondary)" }}>Text Engine (Reports)</span>
+                  <select
+                    value={aiTextEngine}
+                    onChange={(e) => setAiTextEngine(e.target.value)}
+                    style={{ width: "100%", fontSize: "0.8rem", padding: "8px 10px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "6px", color: "var(--text-primary)" }}
+                  >
+                    <option value="groq">Groq Free (Fast)</option>
+                    <option value="openrouter">OpenRouter Free</option>
+                    <option value="gemini">Google Gemini</option>
+                    <option value="huggingface">Hugging Face (Free)</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            {/* Gemini Vision Model Selector */}
+            {aiVisionEngine === "gemini" && (
+              <label style={{ display: "block", marginBottom: "12px" }}>
+                <span style={{ display: "block", marginBottom: "4px", fontSize: "0.75rem", fontWeight: "600", color: "var(--text-secondary)" }}>Gemini Vision Model</span>
+                <select
+                  value={geminiVisionModel}
+                  onChange={(e) => setGeminiVisionModel(e.target.value)}
+                  style={{ width: "100%", fontSize: "0.8rem", padding: "8px 10px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "6px", color: "var(--text-primary)" }}
+                >
+                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (Default / Recommended)</option>
+                  <option value="gemini-3.5-flash">Gemini 3.5 Flash (Newest Preview)</option>
+                  <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
+                  <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                  <option value="gemini-2.5-pro">Gemini 2.5 Pro (Pro key required)</option>
+                  <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (Pro key required)</option>
+                  <option value="gemini-3-pro-preview">Gemini 3 Pro Preview (Pro key required)</option>
+                </select>
+              </label>
+            )}
+
+            {/* Hugging Face Vision Model Selector */}
+            {aiVisionEngine === "huggingface" && (
+              <label style={{ display: "block", marginBottom: "12px" }}>
+                <span style={{ display: "block", marginBottom: "4px", fontSize: "0.75rem", fontWeight: "600", color: "var(--text-secondary)" }}>Hugging Face Vision Model</span>
+                <select
+                  value={huggingFaceVisionModel}
+                  onChange={(e) => setHuggingFaceVisionModel(e.target.value)}
+                  style={{ width: "100%", fontSize: "0.8rem", padding: "8px 10px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "6px", color: "var(--text-primary)" }}
+                >
+                  <option value="meta-llama/Llama-3.2-11B-Vision-Instruct">Llama 3.2 11B Vision Instruct</option>
+                  <option value="Qwen/Qwen2-VL-7B-Instruct">Qwen 2 VL 7B Instruct</option>
+                  <option value="Salesforce/blip-image-captioning-large">BLIP Image Captioning Large</option>
+                </select>
+              </label>
+            )}
+
+            {/* Gemini Text Model Selector */}
+            {aiTextEngine === "gemini" && (
+              <label style={{ display: "block", marginBottom: "12px" }}>
+                <span style={{ display: "block", marginBottom: "4px", fontSize: "0.75rem", fontWeight: "600", color: "var(--text-secondary)" }}>Gemini Text Model</span>
+                <select
+                  value={geminiTextModel}
+                  onChange={(e) => setGeminiTextModel(e.target.value)}
+                  style={{ width: "100%", fontSize: "0.8rem", padding: "8px 10px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "6px", color: "var(--text-primary)" }}
+                >
+                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (Default / Recommended)</option>
+                  <option value="gemini-3.5-flash">Gemini 3.5 Flash (Newest Preview)</option>
+                  <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
+                  <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                  <option value="gemini-2.5-pro">Gemini 2.5 Pro (Pro key required)</option>
+                  <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (Pro key required)</option>
+                  <option value="gemini-3-pro-preview">Gemini 3 Pro Preview (Pro key required)</option>
+                </select>
+              </label>
+            )}
+
+            {/* Hugging Face Text Model Selector */}
+            {aiTextEngine === "huggingface" && (
+              <label style={{ display: "block", marginBottom: "12px" }}>
+                <span style={{ display: "block", marginBottom: "4px", fontSize: "0.75rem", fontWeight: "600", color: "var(--text-secondary)" }}>Hugging Face Model</span>
+                <select
+                  value={huggingFaceTextModel}
+                  onChange={(e) => setHuggingFaceTextModel(e.target.value)}
+                  style={{ width: "100%", fontSize: "0.8rem", padding: "8px 10px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "6px", color: "var(--text-primary)" }}
+                >
+                  <option value="Qwen/Qwen2.5-Coder-32B-Instruct">Qwen 2.5 Coder 32B (Default / Recommended)</option>
+                  <option value="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B">DeepSeek R1 Distill Qwen 32B</option>
+                  <option value="meta-llama/Llama-3.3-70B-Instruct">Llama 3.3 70B Instruct</option>
+                  <option value="Qwen/Qwen2.5-72B-Instruct">Qwen 2.5 72B Instruct</option>
+                  <option value="meta-llama/Llama-3.1-70B-Instruct">Llama 3.1 70B Instruct</option>
+                  <option value="meta-llama/Llama-3.1-8B-Instruct">Llama 3.1 8B Instruct</option>
+                </select>
+              </label>
+            )}
+
+            {/* OpenRouter Key Input */}
+            {(aiVisionEngine === "openrouter" || aiTextEngine === "openrouter") && (
+              <label><span>OpenRouter API Key {!openRouterApiKey && <span style={{ color: "#f59e0b", fontSize: "0.7rem" }}>(Using GitHub Secrets if set)</span>}</span>
+                <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                  <input
+                    type="password"
+                    value={openRouterApiKey}
+                    onChange={(e) => setOpenRouterApiKey(e.target.value)}
+                    placeholder="Enter OpenRouter API Key (sk-or-...)"
+                    style={{ flexGrow: 1 }}
+                  />
+                  {openRouterApiKey && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        setOpenRouterApiKey("");
+                        showAppToast("OpenRouter Key removed");
+                      }}
+                      style={{ background: "#ef4444", color: "#fff", border: "none", padding: "10px 14px" }}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </label>
+            )}
+
+            {/* Groq Key Input */}
+            {aiTextEngine === "groq" && (
+              <label><span>Groq API Key {!groqApiKey && <span style={{ color: "#f59e0b", fontSize: "0.7rem" }}>(Using GitHub Secrets if set)</span>}</span>
+                <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                  <input
+                    type="password"
+                    value={groqApiKey}
+                    onChange={(e) => setGroqApiKey(e.target.value)}
+                    placeholder="Enter Groq API Key (gsk_...)"
+                    style={{ flexGrow: 1 }}
+                  />
+                  {groqApiKey && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        setGroqApiKey("");
+                        showAppToast("Groq Key removed");
+                      }}
+                      style={{ background: "#ef4444", color: "#fff", border: "none", padding: "10px 14px" }}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </label>
+            )}
+
+            {/* Gemini Key Input */}
+            {(aiVisionEngine === "gemini" || aiTextEngine === "gemini") && (
+              <label><span>Gemini API Key {!geminiApiKey && <span style={{ color: "#f59e0b", fontSize: "0.7rem" }}>(Using Shared/Env Key if set)</span>}</span>
+                <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                  <input
+                    type="password"
+                    value={geminiApiKey}
+                    onChange={(e) => setGeminiApiKey(e.target.value)}
+                    placeholder="Enter Gemini API Key (AIzaSy...)"
+                    style={{ flexGrow: 1 }}
+                  />
+                  {geminiApiKey && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        setGeminiApiKey("");
+                        showAppToast("Gemini Key removed");
+                      }}
+                      style={{ background: "#ef4444", color: "#fff", border: "none", padding: "10px 14px" }}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </label>
+            )}
+
+            {/* Hugging Face Key Input */}
+            {(aiVisionEngine === "huggingface" || aiTextEngine === "huggingface") && (
+              <label><span>Hugging Face Token {!huggingFaceApiKey && <span style={{ color: "#f59e0b", fontSize: "0.7rem" }}>(Using Shared/Default Token)</span>}</span>
+                <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                  <input
+                    type="password"
+                    value={huggingFaceApiKey}
+                    onChange={(e) => setHuggingFaceApiKey(e.target.value)}
+                    placeholder="Enter Hugging Face Token (hf_...)"
+                    style={{ flexGrow: 1 }}
+                  />
+                  {huggingFaceApiKey && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        setHuggingFaceApiKey("");
+                        showAppToast("Hugging Face Token removed");
+                      }}
+                      style={{ background: "#ef4444", color: "#fff", border: "none", padding: "10px 14px" }}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </label>
+            )}
+
+
+            {/* AI Customization Settings */}
+            <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
+              <div style={{ flex: 1 }}>
+                <label><span style={{ display: "block", marginBottom: "4px", fontSize: "0.78rem" }}>Detail Level</span>
+                  <select
+                    value={postLabDetailLevel}
+                    onChange={(e) => changePostLabDetailLevel(e.target.value)}
+                    style={{ width: "100%", fontSize: "0.8rem", padding: "8px 10px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "6px", color: "var(--text-primary)" }}
+                  >
+                    <option value="basic">Basic (Concise)</option>
+                    <option value="standard">Standard (Medium)</option>
+                    <option value="detailed">Detailed (More Info)</option>
+                  </select>
+                </label>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label><span style={{ display: "block", marginBottom: "4px", fontSize: "0.78rem" }}>Target Pages</span>
+                  <select
+                    value={postLabPages}
+                    onChange={(e) => changePostLabPages(e.target.value)}
+                    style={{ width: "100%", fontSize: "0.8rem", padding: "8px 10px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "6px", color: "var(--text-primary)" }}
+                  >
+                    <option value="auto">Auto-adjust</option>
+                    <option value="1">1 Page</option>
+                    <option value="2">2 Pages</option>
+                    <option value="3">3 Pages</option>
+                    <option value="4">4 Pages</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            {/* Groq Generation Mode Selection */}
+            {aiTextEngine === "groq" && (
+              <label style={{ display: "block", marginBottom: "12px" }}>
+                <span style={{ display: "block", marginBottom: "4px", fontSize: "0.75rem", fontWeight: "600", color: "var(--text-secondary)" }}>Generation Mode</span>
+                <select
+                  value={groqGenerationMode}
+                  onChange={(e) => setGroqGenerationMode(e.target.value)}
+                  style={{ width: "100%", fontSize: "0.8rem", padding: "8px 10px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "6px", color: "var(--text-primary)" }}
+                >
+                  <option value="consensus">Ensemble Mode (Combines all 10 models — best quality)</option>
+                  <option value="single">Single Model Mode (Llama-3.3-70b only — faster)</option>
+                </select>
+              </label>
+            )}
+
+            {/* Drag and Drop Zone */}
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith("image/"));
+                if (files.length > 0) {
+                  handleReportSheetUpload(files);
+                } else {
+                  showAppToast("Please drop image files", "error");
+                }
+              }}
+              style={{
+                border: "2px dashed var(--border-subtle, #4b5563)",
+                borderRadius: "8px",
+                padding: "24px 16px",
+                textAlign: "center",
+                cursor: "pointer",
+                background: "rgba(0, 0, 0, 0.15)",
+                transition: "border-color 0.2s ease, background-color 0.2s ease",
+                marginBottom: "12px"
+              }}
+              onClick={() => document.getElementById("report-sheet-input").click()}
+            >
+              <input
+                id="report-sheet-input"
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => handleReportSheetUpload(Array.from(e.target.files))}
+                style={{ display: "none" }}
+              />
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 8px", color: "var(--text-secondary)" }}>
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              <span style={{ fontSize: "0.85rem", display: "block", color: "var(--text-primary)", fontWeight: "500" }}>
+                Drag &amp; drop report image(s)
+              </span>
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
+                or click to browse multiple
+              </span>
+            </div>
+
+            {uploadedReportImages.length > 0 && (
+              <div style={{ marginBottom: "12px" }}>
+                <span style={{ fontSize: "0.78rem", fontWeight: "600", color: "var(--text-secondary)", display: "block", marginBottom: "6px" }}>Attached Images ({uploadedReportImages.length})</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {uploadedReportImages.map((imgUrl, imgIdx) => (
+                    <div key={imgIdx} style={{ background: "rgba(0, 0, 0, 0.2)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "8px", display: "flex", alignItems: "center", gap: "10px" }}>
+                      <img src={imgUrl} alt={`Sheet ${imgIdx + 1} thumbnail`} style={{ width: "36px", height: "36px", objectFit: "cover", borderRadius: "4px" }} />
+                      <div style={{ flexGrow: 1, overflow: "hidden" }}>
+                        <span style={{ fontSize: "0.75rem", fontWeight: "600", display: "block" }}>Report Sheet {imgIdx + 1}</span>
+                        <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", display: "block" }}>{imgIdx === 0 ? "Main Sheet" : "Attached Sheet"}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = uploadedReportImages.filter((_, idx) => idx !== imgIdx);
+                          setUploadedReportImages(updated);
+                          if (updated.length === 0) {
+                            setPostLabAnswers("");
+                            setEnabledPages(prev => ({
+                              ...prev,
+                              uploadedImagePage: false,
+                              postLabAnswersPage: false
+                            }));
+                          }
+                          showAppToast(`Sheet ${imgIdx + 1} removed`);
+                        }}
+                        style={{ background: "#ef4444", color: "#fff", border: "none", borderRadius: "4px", padding: "4px 8px", fontSize: "0.7rem", cursor: "pointer" }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {isProcessingReportSheet ? (
+              <div style={{ padding: "10px", background: "rgba(16, 185, 129, 0.07)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", color: "#10b981", fontSize: "0.8rem", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
+                <div className="visit-dot" style={{ width: "8px", height: "8px", background: "#10b981", boxShadow: "0 0 8px #10b981", flexShrink: 0 }}></div>
+                <span>AI is analyzing your lab sheet and writing the report...</span>
+              </div>
+            ) : (
+              uploadedReportImages.length > 0 && (
+                <Button
+                  type="button"
+                  onClick={() => processReportSheet(uploadedReportImages[0])}
+                  style={{ width: "100%", fontSize: "0.85rem", fontWeight: "700", justifyContent: "center", background: postLabAnswers ? "linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)" : "linear-gradient(135deg, #10b981 0%, #059669 100%)", padding: "12px 16px", letterSpacing: "0.02em" }}
+                >
+                  {postLabAnswers ? "⚡ Re-Analyze & Re-Generate Reports" : "⚡ Analyze & Generate Lab Reports"}
+                </Button>
+              )
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Submission Readiness Checklist */}
       <div className={`accordion-item ${activeSection === "readiness-checklist" ? "active" : ""}`}>
         <button type="button" className="accordion-header" onClick={() => toggleSection("readiness-checklist")}>
@@ -5349,7 +6824,7 @@ async function askGemini(prompt, apiKey) {
     throw new Error("Please enter your Gemini API Key in the AI Assistant section first.");
   }
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${finalKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${finalKey}`,
     {
       method: "POST",
       headers: {
@@ -5396,6 +6871,8 @@ function App() {
   const exportLabInfoRef = useRef(null);
   const exportAppendixRef = useRef(null);
   const exportCertificateRef = useRef(null);
+  const exportUploadedImageRef = useRef(null);
+  const exportPostLabAnswersRef = useRef(null);
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
   const [is3D, setIs3D] = useState(false);
@@ -5480,8 +6957,125 @@ function App() {
     references: false,
     labInfo: false,
     appendix: false,
-    certificate: false
+    certificate: false,
+    uploadedImagePage: false,
+    postLabAnswersPage: false
   });
+
+  // OpenRouter State for report auto-fill & post-lab generation
+  const [openRouterApiKey, setOpenRouterApiKeyState] = useState(() => {
+    return localStorage.getItem("sub_lab_openrouter_api_key") || import.meta.env.VITE_OPENROUTER_API_KEY || "";
+  });
+  const [groqApiKey, setGroqApiKeyState] = useState(() => {
+    return localStorage.getItem("sub_lab_groq_api_key") || import.meta.env.VITE_GROQ_API_KEY || "";
+  });
+  const [aiVisionEngine, setAiVisionEngineState] = useState(() => {
+    return localStorage.getItem("sub_lab_ai_vision_engine") || "openrouter";
+  });
+  const [aiTextEngine, setAiTextEngineState] = useState(() => {
+    return localStorage.getItem("sub_lab_ai_text_engine") || "groq";
+  });
+  const [groqGenerationMode, setGroqGenerationModeState] = useState(() => {
+    return localStorage.getItem("sub_lab_groq_gen_mode") || "consensus";
+  });
+  const [geminiVisionModel, setGeminiVisionModelState] = useState(() => {
+    return localStorage.getItem("sub_lab_gemini_vision_model") || "gemini-2.5-flash";
+  });
+  const [geminiTextModel, setGeminiTextModelState] = useState(() => {
+    return localStorage.getItem("sub_lab_gemini_text_model") || "gemini-2.5-flash";
+  });
+  const [huggingFaceApiKey, setHuggingFaceApiKeyState] = useState(() => {
+    return localStorage.getItem("sub_lab_hf_api_key") || "";
+  });
+  const [huggingFaceTextModel, setHuggingFaceTextModelState] = useState(() => {
+    return localStorage.getItem("sub_lab_hf_text_model") || "Qwen/Qwen2.5-Coder-32B-Instruct";
+  });
+  const [huggingFaceVisionModel, setHuggingFaceVisionModelState] = useState(() => {
+    return localStorage.getItem("sub_lab_hf_vision_model") || "meta-llama/Llama-3.2-11B-Vision-Instruct";
+  });
+
+  const [uploadedReportImages, setUploadedReportImages] = useState([]);
+  const [postLabAnswers, setPostLabAnswers] = useState("");
+  const [isProcessingReportSheet, setIsProcessingReportSheet] = useState(false);
+  const [postLabDetailLevel, setPostLabDetailLevel] = useState(() => {
+    return localStorage.getItem("sub_lab_postlab_detail") || "standard";
+  });
+  const [postLabPages, setPostLabPages] = useState(() => {
+    return localStorage.getItem("sub_lab_postlab_pages") || "auto";
+  });
+
+  const changePostLabDetailLevel = (level) => {
+    setPostLabDetailLevel(level);
+    localStorage.setItem("sub_lab_postlab_detail", level);
+  };
+
+  const changePostLabPages = (pages) => {
+    setPostLabPages(pages);
+    localStorage.setItem("sub_lab_postlab_pages", pages);
+  };
+
+  const setOpenRouterApiKey = (key) => {
+    setOpenRouterApiKeyState(key);
+    if (key) {
+      localStorage.setItem("sub_lab_openrouter_api_key", key);
+    } else {
+      localStorage.removeItem("sub_lab_openrouter_api_key");
+    }
+  };
+
+  const setGroqApiKey = (key) => {
+    setGroqApiKeyState(key);
+    if (key) {
+      localStorage.setItem("sub_lab_groq_api_key", key);
+    } else {
+      localStorage.removeItem("sub_lab_groq_api_key");
+    }
+  };
+
+  const setAiVisionEngine = (engine) => {
+    setAiVisionEngineState(engine);
+    localStorage.setItem("sub_lab_ai_vision_engine", engine);
+  };
+
+  const setAiTextEngine = (engine) => {
+    setAiTextEngineState(engine);
+    localStorage.setItem("sub_lab_ai_text_engine", engine);
+  };
+
+  const setGroqGenerationMode = (mode) => {
+    setGroqGenerationModeState(mode);
+    localStorage.setItem("sub_lab_groq_gen_mode", mode);
+  };
+
+  const setGeminiVisionModel = (model) => {
+    setGeminiVisionModelState(model);
+    localStorage.setItem("sub_lab_gemini_vision_model", model);
+  };
+
+  const setGeminiTextModel = (model) => {
+    setGeminiTextModelState(model);
+    localStorage.setItem("sub_lab_gemini_text_model", model);
+  };
+
+  const setHuggingFaceApiKey = (key) => {
+    setHuggingFaceApiKeyState(key);
+    if (key) {
+      localStorage.setItem("sub_lab_hf_api_key", key);
+    } else {
+      localStorage.removeItem("sub_lab_hf_api_key");
+    }
+  };
+
+  const setHuggingFaceTextModel = (model) => {
+    setHuggingFaceTextModelState(model);
+    localStorage.setItem("sub_lab_hf_text_model", model);
+  };
+
+  const setHuggingFaceVisionModel = (model) => {
+    setHuggingFaceVisionModelState(model);
+    localStorage.setItem("sub_lab_hf_vision_model", model);
+  };
+
 
   const pageOffsets = useMemo(() => {
     const offsets = {};
@@ -5489,11 +7083,18 @@ function App() {
     pageRenderOrder.forEach((pageKey) => {
       if (enabledPages[pageKey]) {
         offsets[pageKey] = index;
-        index += 1;
+        if (pageKey === "uploadedImagePage") {
+          index += Math.max(1, uploadedReportImages.length);
+        } else if (pageKey === "postLabAnswersPage") {
+          const pages = (postLabAnswers || "").split(/\s*\[PAGE[_-]BREAK\]\s*/i);
+          index += Math.max(1, pages.length);
+        } else {
+          index += 1;
+        }
       }
     });
     return offsets;
-  }, [enabledPages]);
+  }, [enabledPages, uploadedReportImages, postLabAnswers]);
 
   const [ackData, setAckData] = useState({
     title: "ACKNOWLEDGEMENT",
@@ -6131,6 +7732,32 @@ function App() {
     if (enabledPages.labInfo) pagesToRender.push({ name: "Lab Information", ref: exportLabInfoRef });
     if (enabledPages.appendix) pagesToRender.push({ name: "Appendix", ref: exportAppendixRef });
     if (enabledPages.certificate) pagesToRender.push({ name: "Certificate", ref: exportCertificateRef });
+    if (enabledPages.uploadedImagePage) {
+      const uploadNodes = document.querySelectorAll(".export-stage [data-page-key='uploadedImagePage']");
+      if (uploadNodes && uploadNodes.length > 0) {
+        uploadNodes.forEach((node, idx) => {
+          pagesToRender.push({
+            name: `Original Report Sheet (Page ${idx + 1})`,
+            domNode: node
+          });
+        });
+      } else {
+        pagesToRender.push({ name: "Original Report Sheet", ref: exportUploadedImageRef });
+      }
+    }
+    if (enabledPages.postLabAnswersPage) {
+      const postLabNodes = document.querySelectorAll(".export-stage [data-page-key='postLabAnswersPage']");
+      if (postLabNodes && postLabNodes.length > 0) {
+        postLabNodes.forEach((node, idx) => {
+          pagesToRender.push({
+            name: `Post-Lab Answers (Page ${idx + 1})`,
+            domNode: node
+          });
+        });
+      } else {
+        pagesToRender.push({ name: "Post-Lab Answers", ref: exportPostLabAnswersRef });
+      }
+    }
 
     const pdf = new jsPDF({
       orientation: selectedPage.widthMm > selectedPage.heightMm ? "landscape" : "portrait",
@@ -6139,7 +7766,7 @@ function App() {
     });
 
     for (let i = 0; i < pagesToRender.length; i++) {
-      const node = pagesToRender[i].ref.current;
+      const node = pagesToRender[i].domNode || pagesToRender[i].ref?.current;
       if (!node) continue;
       await document.fonts?.ready;
 
@@ -6423,6 +8050,36 @@ function App() {
             exportShareUrl={exportShareUrl}
             geminiApiKey={geminiApiKey}
             setGeminiApiKey={setGeminiApiKey}
+            openRouterApiKey={openRouterApiKey}
+            setOpenRouterApiKey={setOpenRouterApiKey}
+            groqApiKey={groqApiKey}
+            setGroqApiKey={setGroqApiKey}
+            aiVisionEngine={aiVisionEngine}
+            setAiVisionEngine={setAiVisionEngine}
+            aiTextEngine={aiTextEngine}
+            setAiTextEngine={setAiTextEngine}
+            groqGenerationMode={groqGenerationMode}
+            setGroqGenerationMode={setGroqGenerationMode}
+            geminiVisionModel={geminiVisionModel}
+            setGeminiVisionModel={setGeminiVisionModel}
+            geminiTextModel={geminiTextModel}
+            setGeminiTextModel={setGeminiTextModel}
+            huggingFaceApiKey={huggingFaceApiKey}
+            setHuggingFaceApiKey={setHuggingFaceApiKey}
+            huggingFaceTextModel={huggingFaceTextModel}
+            setHuggingFaceTextModel={setHuggingFaceTextModel}
+            huggingFaceVisionModel={huggingFaceVisionModel}
+            setHuggingFaceVisionModel={setHuggingFaceVisionModel}
+            uploadedReportImages={uploadedReportImages}
+            setUploadedReportImages={setUploadedReportImages}
+            postLabAnswers={postLabAnswers}
+            setPostLabAnswers={setPostLabAnswers}
+            isProcessingReportSheet={isProcessingReportSheet}
+            setIsProcessingReportSheet={setIsProcessingReportSheet}
+            postLabDetailLevel={postLabDetailLevel}
+            postLabPages={postLabPages}
+            changePostLabDetailLevel={changePostLabDetailLevel}
+            changePostLabPages={changePostLabPages}
           />
         </div>
       </section>
@@ -6524,6 +8181,65 @@ function App() {
 
         {/* Paper scene — double-click opens lightbox */}
         <div className="paper-scene">
+          {/* AI Processing Overlay */}
+          {isProcessingReportSheet && (
+            <div style={{
+              position: "absolute", inset: 0, zIndex: 999,
+              background: "rgba(4,11,28,0.88)",
+              backdropFilter: "blur(6px)",
+              display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center",
+              gap: "20px", pointerEvents: "none"
+            }}>
+              {/* Animated scan ring */}
+              <div style={{ position: "relative", width: "80px", height: "80px" }}>
+                <div style={{
+                  position: "absolute", inset: 0,
+                  border: "3px solid rgba(37,99,235,0.2)",
+                  borderRadius: "50%"
+                }} />
+                <div style={{
+                  position: "absolute", inset: 0,
+                  border: "3px solid transparent",
+                  borderTopColor: "#3b82f6",
+                  borderRadius: "50%",
+                  animation: "spin 1s linear infinite"
+                }} />
+                <div style={{
+                  position: "absolute", inset: "16px",
+                  border: "2px solid transparent",
+                  borderTopColor: "#06b6d4",
+                  borderRadius: "50%",
+                  animation: "spin 0.7s linear infinite reverse"
+                }} />
+                <div style={{
+                  position: "absolute", inset: "28px",
+                  background: "radial-gradient(circle, #3b82f6 0%, #1d4ed8 100%)",
+                  borderRadius: "50%",
+                  boxShadow: "0 0 16px rgba(59,130,246,0.6)"
+                }} />
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ color: "#e8f0ff", fontWeight: "700", fontSize: "1rem", marginBottom: "6px", letterSpacing: "0.01em" }}>
+                  ✦ AI is Analyzing
+                </div>
+                <div style={{ color: "#64748b", fontSize: "0.78rem", lineHeight: "1.6" }}>
+                  Step 1: Reading lab sheet via OCR…<br/>
+                  Step 2: Writing post-lab answers…
+                </div>
+              </div>
+              {/* Progress bar */}
+              <div style={{ width: "180px", height: "3px", background: "rgba(255,255,255,0.06)", borderRadius: "99px", overflow: "hidden" }}>
+                <div style={{
+                  height: "100%",
+                  background: "linear-gradient(90deg, #2563eb, #06b6d4)",
+                  borderRadius: "99px",
+                  animation: "aiProgressBar 3s ease-in-out infinite alternate"
+                }} />
+              </div>
+            </div>
+          )}
+
           <div
             className="paper-scaler"
             style={{
@@ -6623,6 +8339,35 @@ function App() {
             {enabledPages.certificate && (
               <CertificatePage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} formData={formData} pageOffset={pageOffsets.certificate} />
             )}
+            {enabledPages.uploadedImagePage && uploadedReportImages.map((imgUrl, imgIdx) => (
+              <UploadedReportPage
+                key={`preview-uploaded-image-${imgIdx}`}
+                paperStyle={paperStyle}
+                showRulers={showRulers}
+                showGrid={showGrid}
+                showGuides={showGuides}
+                selectedPage={selectedPage}
+                imageUrl={imgUrl}
+                pageOffset={pageOffsets.uploadedImagePage + imgIdx}
+                formData={formData}
+              />
+            ))}
+            {enabledPages.postLabAnswersPage && (() => {
+              const pages = (postLabAnswers || "").split(/\s*\[PAGE[_-]BREAK\]\s*/i);
+              return pages.map((pageText, pageIndex) => (
+                <PostLabAnswersPage
+                  key={`preview-post-lab-page-${pageIndex}`}
+                  paperStyle={paperStyle}
+                  showRulers={showRulers}
+                  showGrid={showGrid}
+                  showGuides={showGuides}
+                  selectedPage={selectedPage}
+                  answersText={pageText}
+                  pageOffset={pageOffsets.postLabAnswersPage + pageIndex}
+                  formData={formData}
+                />
+              ));
+            })()}
           </div>
         </div>
 
@@ -6722,6 +8467,37 @@ function App() {
         {enabledPages.certificate && (
           <CertificatePage paperStyle={paperStyle} showRulers={false} showGrid={false} showGuides={false} selectedPage={selectedPage} cardRef={exportCertificateRef} formData={formData} pageOffset={pageOffsets.certificate} />
         )}
+        {enabledPages.uploadedImagePage && uploadedReportImages.map((imgUrl, imgIdx) => (
+          <UploadedReportPage
+            key={`export-uploaded-image-${imgIdx}`}
+            paperStyle={paperStyle}
+            showRulers={false}
+            showGrid={false}
+            showGuides={false}
+            selectedPage={selectedPage}
+            cardRef={imgIdx === 0 ? exportUploadedImageRef : null}
+            imageUrl={imgUrl}
+            pageOffset={pageOffsets.uploadedImagePage + imgIdx}
+            formData={formData}
+          />
+        ))}
+        {enabledPages.postLabAnswersPage && (() => {
+          const pages = (postLabAnswers || "").split(/\s*\[PAGE[_-]BREAK\]\s*/i);
+          return pages.map((pageText, pageIndex) => (
+            <PostLabAnswersPage
+              key={`export-post-lab-page-${pageIndex}`}
+              paperStyle={paperStyle}
+              showRulers={false}
+              showGrid={false}
+              showGuides={false}
+              selectedPage={selectedPage}
+              cardRef={pageIndex === 0 ? exportPostLabAnswersRef : null}
+              answersText={pageText}
+              pageOffset={pageOffsets.postLabAnswersPage + pageIndex}
+              formData={formData}
+            />
+          ));
+        })()}
       </div>
 
       {/* ════ LIGHTBOX (double-click zoom) ════ */}
@@ -6833,6 +8609,37 @@ function App() {
                 <CertificatePage paperStyle={paperStyle} showRulers={showRulers} showGrid={showGrid} showGuides={showGuides} selectedPage={selectedPage} formData={formData} pageOffset={pageOffsets.certificate} />
               </div>
             )}
+            {enabledPages.uploadedImagePage && uploadedReportImages.map((imgUrl, imgIdx) => (
+              <div key={`lightbox-uploaded-image-${imgIdx}`} className="lightbox-page-frame" style={lightboxPageFrameStyle}>
+                <UploadedReportPage
+                  paperStyle={paperStyle}
+                  showRulers={showRulers}
+                  showGrid={showGrid}
+                  showGuides={showGuides}
+                  selectedPage={selectedPage}
+                  imageUrl={imgUrl}
+                  pageOffset={pageOffsets.uploadedImagePage + imgIdx}
+                  formData={formData}
+                />
+              </div>
+            ))}
+            {enabledPages.postLabAnswersPage && (() => {
+              const pages = (postLabAnswers || "").split(/\s*\[PAGE[_-]BREAK\]\s*/i);
+              return pages.map((pageText, pageIndex) => (
+                <div key={`lightbox-post-lab-page-${pageIndex}`} className="lightbox-page-frame" style={lightboxPageFrameStyle}>
+                  <PostLabAnswersPage
+                    paperStyle={paperStyle}
+                    showRulers={showRulers}
+                    showGrid={showGrid}
+                    showGuides={showGuides}
+                    selectedPage={selectedPage}
+                    answersText={pageText}
+                    pageOffset={pageOffsets.postLabAnswersPage + pageIndex}
+                    formData={formData}
+                  />
+                </div>
+              ));
+            })()}
           </div>
         </Lightbox>
       )}
